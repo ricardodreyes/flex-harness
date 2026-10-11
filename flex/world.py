@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -10,7 +11,8 @@ from flex.contract import TRAIN_CAP_KW, Job, Scenario, World
 PACIFIC = ZoneInfo("America/Los_Angeles")
 DATA = Path(__file__).parent.parent / "data"
 PRICES = DATA / "caiso_np15_dam_2026.json"
-FINAL_PRICES = DATA / "final" / "caiso_np15_dam_2026_final.json"
+# outside the repo so neither the supervisor nor a policy can reach it through the working tree
+FINAL_PRICES = Path(os.environ.get("FLEX_FINAL_PRICES", Path.home() / ".config" / "flex" / "caiso_np15_dam_2026_final.json"))
 MAX_DEADLINE_OFFSET_H = 72
 
 

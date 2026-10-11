@@ -1,5 +1,7 @@
 """The feasibility prerequisite for the restart scenario, on dev scenarios only. Never touches final."""
 
+import sys
+
 from flex.evaluate import feasible, passes, run
 from flex.scenarios import dev
 from policies.control_repair import CONTROL_REPAIR
@@ -44,7 +46,8 @@ def main():
                              ("c", c, f"control_repair passes the failing dev-*-high {high_fail}"),
                              ("d", d, "dev-imp-11 and dev-cap-11 reported infeasible for every policy")):
         print(f"({letter}) {'ok  ' if ok else 'FAIL'} {text}")
-    print("PREREQUISITE", "PASS" if a and b and c and d else "FAIL")
+    ok = a and b and c and d
+    print("PREREQUISITE", "PASS" if ok else "FAIL")
     print()
 
     def cost(res, ids):
@@ -58,6 +61,8 @@ def main():
     for s in low + high:
         r, w = rep[s]["totals"]["training_energy_cost"], aware[s]["totals"]["training_energy_cost"]
         print(f"{s}: {'restart_aware' if w < r else 'control_repair'} cheaper by ${abs(w - r):,.2f}")
+    if not ok:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
