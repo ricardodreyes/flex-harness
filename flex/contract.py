@@ -202,6 +202,7 @@ class HarnessVersion(TypedDict):
     predicted: str
     author: Literal["baseline", "control", "supervisor"]
     status: Status
+    acceptance: NotRequired[Literal["repair", "cost"]]
     verdict: NotRequired[Verdict]
     identity: NotRequired[EvalIdentity]
     created_at: datetime

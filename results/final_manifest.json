@@ -1,0 +1,729 @@
+{
+ "evaluator_version": "2026-10-11.3",
+ "created_at": "2026-10-11T21:43:37.292465+00:00",
+ "pinned": [
+  {
+   "version": "v0",
+   "author": "baseline",
+   "acceptance": null,
+   "role": "champion",
+   "policy": {
+    "context_fields": [
+     "event_now",
+     "slack_h",
+     "need_h",
+     "price_pct"
+    ],
+    "rules": [
+     {
+      "when": [
+       {
+        "field": "event_now",
+        "op": "==",
+        "value": true
+       }
+      ],
+      "power": 0.0
+     },
+     {
+      "when": [
+       {
+        "field": "slack_h",
+        "op": "<=",
+        "value": {
+         "field": "need_h",
+         "times": 2.0,
+         "plus": 0
+        }
+       }
+      ],
+      "power": 1.0
+     },
+     {
+      "when": [
+       {
+        "field": "price_pct",
+        "op": "<=",
+        "value": 0.5
+       }
+      ],
+      "power": 1.0
+     }
+    ],
+    "default_power": 0.0
+   },
+   "identity": {
+    "evaluator_version": "2026-10-11.3",
+    "manifest_sha256": "2bcfa8a47470714367a61e4ab65ac8d3494dcf281b1ec33b80afb5dc017895fb",
+    "policy_sha256": "b86632348339e87b5e12c3d9d823c663cd87cb0b621650bc6d105fec45737457",
+    "scenario_ids": [
+     "final-31",
+     "final-32",
+     "final-33"
+    ]
+   }
+  },
+  {
+   "version": "g1-289b1a",
+   "author": "supervisor",
+   "acceptance": "repair",
+   "role": "champion",
+   "policy": {
+    "context_fields": [
+     "event_now",
+     "event_in_h",
+     "slack_h",
+     "need_h",
+     "price_pct",
+     "running",
+     "restart_kwh"
+    ],
+    "rules": [
+     {
+      "when": [
+       {
+        "field": "event_now",
+        "op": "==",
+        "value": true
+       }
+      ],
+      "power": 0.0
+     },
+     {
+      "when": [
+       {
+        "field": "slack_h",
+        "op": "<=",
+        "value": {
+         "field": "need_h",
+         "times": 2.0,
+         "plus": 4.0
+        }
+       }
+      ],
+      "power": 1.0
+     },
+     {
+      "when": [
+       {
+        "field": "running",
+        "op": "==",
+        "value": true
+       },
+       {
+        "field": "restart_kwh",
+        "op": ">=",
+        "value": 300
+       }
+      ],
+      "power": 1.0
+     },
+     {
+      "when": [
+       {
+        "field": "event_in_h",
+        "op": "<=",
+        "value": 6
+       },
+       {
+        "field": "slack_h",
+        "op": "<=",
+        "value": {
+         "field": "need_h",
+         "times": 3.0,
+         "plus": 6.0
+        }
+       }
+      ],
+      "power": 1.0
+     },
+     {
+      "when": [
+       {
+        "field": "price_pct",
+        "op": "<=",
+        "value": 0.5
+       }
+      ],
+      "power": 1.0
+     }
+    ],
+    "default_power": 0.0
+   },
+   "identity": {
+    "evaluator_version": "2026-10-11.3",
+    "manifest_sha256": "2bcfa8a47470714367a61e4ab65ac8d3494dcf281b1ec33b80afb5dc017895fb",
+    "policy_sha256": "9b8d1b53ad2dcf1fad4ec1820431bbbacbfed882ac1ec0ff969dff106a7d81e7",
+    "scenario_ids": [
+     "final-31",
+     "final-32",
+     "final-33"
+    ]
+   }
+  },
+  {
+   "version": "g5-683c0e",
+   "author": "supervisor",
+   "acceptance": "cost",
+   "role": "champion",
+   "policy": {
+    "context_fields": [
+     "event_now",
+     "event_in_h",
+     "slack_h",
+     "need_h",
+     "price_pct",
+     "running",
+     "restart_kwh"
+    ],
+    "rules": [
+     {
+      "when": [
+       {
+        "field": "event_now",
+        "op": "==",
+        "value": true
+       }
+      ],
+      "power": 0.0
+     },
+     {
+      "when": [
+       {
+        "field": "slack_h",
+        "op": "<=",
+        "value": {
+         "field": "need_h",
+         "times": 2.0,
+         "plus": 4.0
+        }
+       }
+      ],
+      "power": 1.0
+     },
+     {
+      "when": [
+       {
+        "field": "event_in_h",
+        "op": "<=",
+        "value": 6
+       },
+       {
+        "field": "slack_h",
+        "op": "<=",
+        "value": {
+         "field": "need_h",
+         "times": 3.0,
+         "plus": 6.0
+        }
+       }
+      ],
+      "power": 1.0
+     },
+     {
+      "when": [
+       {
+        "field": "price_pct",
+        "op": "<=",
+        "value": 0.5
+       }
+      ],
+      "power": 1.0
+     },
+     {
+      "when": [
+       {
+        "field": "running",
+        "op": "==",
+        "value": true
+       },
+       {
+        "field": "restart_kwh",
+        "op": ">=",
+        "value": 300
+       },
+       {
+        "field": "slack_h",
+        "op": "<=",
+        "value": {
+         "field": "need_h",
+         "times": 3.0,
+         "plus": 8.0
+        }
+       }
+      ],
+      "power": 1.0
+     },
+     {
+      "when": [
+       {
+        "field": "running",
+        "op": "==",
+        "value": true
+       },
+       {
+        "field": "restart_kwh",
+        "op": ">=",
+        "value": 300
+       }
+      ],
+      "power": 0.05
+     }
+    ],
+    "default_power": 0.0
+   },
+   "identity": {
+    "evaluator_version": "2026-10-11.3",
+    "manifest_sha256": "2bcfa8a47470714367a61e4ab65ac8d3494dcf281b1ec33b80afb5dc017895fb",
+    "policy_sha256": "98d14593a43e9109af9e88f85b1c856fe9f3d445ac619f0fca9cf1757e941d7b",
+    "scenario_ids": [
+     "final-31",
+     "final-32",
+     "final-33"
+    ]
+   }
+  },
+  {
+   "version": "g4-eac5bd",
+   "author": "supervisor",
+   "acceptance": "cost",
+   "role": "champion",
+   "policy": {
+    "context_fields": [
+     "event_now",
+     "event_in_h",
+     "slack_h",
+     "need_h",
+     "price_pct",
+     "running",
+     "restart_kwh"
+    ],
+    "rules": [
+     {
+      "when": [
+       {
+        "field": "event_now",
+        "op": "==",
+        "value": true
+       }
+      ],
+      "power": 0.0
+     },
+     {
+      "when": [
+       {
+        "field": "slack_h",
+        "op": "<=",
+        "value": {
+         "field": "need_h",
+         "times": 1.4,
+         "plus": 4.0
+        }
+       }
+      ],
+      "power": 1.0
+     },
+     {
+      "when": [
+       {
+        "field": "event_in_h",
+        "op": "<=",
+        "value": 6
+       },
+       {
+        "field": "slack_h",
+        "op": "<=",
+        "value": {
+         "field": "need_h",
+         "times": 3.0,
+         "plus": 6.0
+        }
+       }
+      ],
+      "power": 1.0
+     },
+     {
+      "when": [
+       {
+        "field": "slack_h",
+        "op": "<=",
+        "value": {
+         "field": "need_h",
+         "times": 2.0,
+         "plus": 4.0
+        }
+       },
+       {
+        "field": "price_pct",
+        "op": "<=",
+        "value": 0.7
+       }
+      ],
+      "power": 1.0
+     },
+     {
+      "when": [
+       {
+        "field": "price_pct",
+        "op": "<=",
+        "value": 0.5
+       }
+      ],
+      "power": 1.0
+     },
+     {
+      "when": [
+       {
+        "field": "running",
+        "op": "==",
+        "value": true
+       },
+       {
+        "field": "restart_kwh",
+        "op": ">=",
+        "value": 300
+       },
+       {
+        "field": "slack_h",
+        "op": "<=",
+        "value": {
+         "field": "need_h",
+         "times": 3.0,
+         "plus": 8.0
+        }
+       }
+      ],
+      "power": 1.0
+     },
+     {
+      "when": [
+       {
+        "field": "running",
+        "op": "==",
+        "value": true
+       },
+       {
+        "field": "restart_kwh",
+        "op": ">=",
+        "value": 300
+       }
+      ],
+      "power": 0.03
+     }
+    ],
+    "default_power": 0.0
+   },
+   "identity": {
+    "evaluator_version": "2026-10-11.3",
+    "manifest_sha256": "2bcfa8a47470714367a61e4ab65ac8d3494dcf281b1ec33b80afb5dc017895fb",
+    "policy_sha256": "f7c56db43a438aa830a58e870fa111ab79f6732835113c67606392c563795d45",
+    "scenario_ids": [
+     "final-31",
+     "final-32",
+     "final-33"
+    ]
+   }
+  },
+  {
+   "version": "g5-e942f4",
+   "author": "supervisor",
+   "acceptance": "cost",
+   "role": "champion",
+   "policy": {
+    "context_fields": [
+     "event_now",
+     "event_in_h",
+     "slack_h",
+     "need_h",
+     "price_pct",
+     "running",
+     "restart_kwh"
+    ],
+    "rules": [
+     {
+      "when": [
+       {
+        "field": "event_now",
+        "op": "==",
+        "value": true
+       }
+      ],
+      "power": 0.0
+     },
+     {
+      "when": [
+       {
+        "field": "slack_h",
+        "op": "<=",
+        "value": {
+         "field": "need_h",
+         "times": 1.4,
+         "plus": 4.0
+        }
+       }
+      ],
+      "power": 1.0
+     },
+     {
+      "when": [
+       {
+        "field": "event_in_h",
+        "op": "<=",
+        "value": 6
+       },
+       {
+        "field": "slack_h",
+        "op": "<=",
+        "value": {
+         "field": "need_h",
+         "times": 3.0,
+         "plus": 6.0
+        }
+       }
+      ],
+      "power": 1.0
+     },
+     {
+      "when": [
+       {
+        "field": "slack_h",
+        "op": "<=",
+        "value": {
+         "field": "need_h",
+         "times": 2.0,
+         "plus": 4.0
+        }
+       },
+       {
+        "field": "price_pct",
+        "op": "<=",
+        "value": 0.7
+       }
+      ],
+      "power": 1.0
+     },
+     {
+      "when": [
+       {
+        "field": "price_pct",
+        "op": "<=",
+        "value": 0.5
+       }
+      ],
+      "power": 1.0
+     },
+     {
+      "when": [
+       {
+        "field": "running",
+        "op": "==",
+        "value": true
+       },
+       {
+        "field": "restart_kwh",
+        "op": ">=",
+        "value": 300
+       },
+       {
+        "field": "slack_h",
+        "op": "<=",
+        "value": {
+         "field": "need_h",
+         "times": 3.0,
+         "plus": 8.0
+        }
+       },
+       {
+        "field": "price_pct",
+        "op": "<=",
+        "value": 0.85
+       }
+      ],
+      "power": 1.0
+     },
+     {
+      "when": [
+       {
+        "field": "running",
+        "op": "==",
+        "value": true
+       },
+       {
+        "field": "restart_kwh",
+        "op": ">=",
+        "value": 300
+       }
+      ],
+      "power": 0.01
+     }
+    ],
+    "default_power": 0.0
+   },
+   "identity": {
+    "evaluator_version": "2026-10-11.3",
+    "manifest_sha256": "2bcfa8a47470714367a61e4ab65ac8d3494dcf281b1ec33b80afb5dc017895fb",
+    "policy_sha256": "6896a65335d56faf0073f6ecc402dfe73d4aebbdbe78e9400960ab16730a7750",
+    "scenario_ids": [
+     "final-31",
+     "final-32",
+     "final-33"
+    ]
+   }
+  },
+  {
+   "version": "restart_aware",
+   "author": "baseline",
+   "acceptance": null,
+   "role": "reference",
+   "policy": {
+    "context_fields": [
+     "event_now",
+     "slack_h",
+     "need_h",
+     "price_pct",
+     "running",
+     "restart_kwh"
+    ],
+    "rules": [
+     {
+      "when": [
+       {
+        "field": "event_now",
+        "op": "==",
+        "value": true
+       }
+      ],
+      "power": 0.0
+     },
+     {
+      "when": [
+       {
+        "field": "slack_h",
+        "op": "<=",
+        "value": {
+         "field": "need_h",
+         "times": 2.0,
+         "plus": 0
+        }
+       }
+      ],
+      "power": 1.0
+     },
+     {
+      "when": [
+       {
+        "field": "running",
+        "op": "==",
+        "value": true
+       },
+       {
+        "field": "price_pct",
+        "op": "<=",
+        "value": 0.8
+       }
+      ],
+      "power": 1.0
+     },
+     {
+      "when": [
+       {
+        "field": "price_pct",
+        "op": "<=",
+        "value": 0.5
+       }
+      ],
+      "power": 1.0
+     }
+    ],
+    "default_power": 0.0
+   },
+   "identity": {
+    "evaluator_version": "2026-10-11.3",
+    "manifest_sha256": "2bcfa8a47470714367a61e4ab65ac8d3494dcf281b1ec33b80afb5dc017895fb",
+    "policy_sha256": "9e06665a2e43c853fa0df8bbfcaad9840d435a34b239b02f1d057ce6979389e4",
+    "scenario_ids": [
+     "final-31",
+     "final-32",
+     "final-33"
+    ]
+   }
+  },
+  {
+   "version": "control",
+   "author": "control",
+   "acceptance": null,
+   "role": "reference",
+   "policy": {
+    "context_fields": [
+     "event_now",
+     "slack_h",
+     "need_h",
+     "price_pct",
+     "running"
+    ],
+    "rules": [
+     {
+      "when": [
+       {
+        "field": "event_now",
+        "op": "==",
+        "value": true
+       }
+      ],
+      "power": 0.0
+     },
+     {
+      "when": [
+       {
+        "field": "running",
+        "op": "==",
+        "value": true
+       },
+       {
+        "field": "price_pct",
+        "op": "<=",
+        "value": 0.7
+       }
+      ],
+      "power": 1.0
+     },
+     {
+      "when": [
+       {
+        "field": "slack_h",
+        "op": "<=",
+        "value": {
+         "field": "need_h",
+         "times": 2.0,
+         "plus": 2
+        }
+       }
+      ],
+      "power": 1.0
+     },
+     {
+      "when": [
+       {
+        "field": "price_pct",
+        "op": "<=",
+        "value": 0.5
+       }
+      ],
+      "power": 1.0
+     }
+    ],
+    "default_power": 0.0
+   },
+   "identity": {
+    "evaluator_version": "2026-10-11.3",
+    "manifest_sha256": "2bcfa8a47470714367a61e4ab65ac8d3494dcf281b1ec33b80afb5dc017895fb",
+    "policy_sha256": "4437ae9f38ff8223674206f6dc0df9c3e81f4fa9596029dc0ca1424d274d9c69",
+    "scenario_ids": [
+     "final-31",
+     "final-32",
+     "final-33"
+    ]
+   }
+  }
+ ]
+}

@@ -1,0 +1,30 @@
+pinned: v0 (champion), g1-289b1a (champion), g5-683c0e (champion), g4-eac5bd (champion), g5-e942f4 (champion), restart_aware (reference), control (reference)
+scenario  version        pass  feasible  late h  unfinished kWh  cap int   train $
+final-31  v0             True      True       0               0        0  5,368.67
+final-32  v0             True      True       0               0        0  5,410.20
+final-33  v0             True      True       0               0        0  7,145.58
+final-31  g1-289b1a      True      True       0               0        0  5,363.39
+final-32  g1-289b1a      True      True       0               0        0  5,810.27
+final-33  g1-289b1a      True      True       0               0        0  7,067.97
+final-31  g5-683c0e      True      True       0               0        0  4,644.15
+final-32  g5-683c0e      True      True       0               0        0  4,979.21
+final-33  g5-683c0e      True      True       0               0        0  6,511.88
+final-31  g4-eac5bd      True      True       0               0        0  4,600.31
+final-32  g4-eac5bd      True      True       0               0        0  4,965.78
+final-33  g4-eac5bd      True      True       0               0        0  6,495.36
+final-31  g5-e942f4      True      True       0               0        0  4,618.11
+final-32  g5-e942f4      True      True       0               0        0  4,927.01
+final-33  g5-e942f4      True      True       0               0        0  6,196.54
+final-31  restart_aware  True      True       0               0        0  4,830.98
+final-32  restart_aware  True      True       0               0        0  5,328.35
+final-33  restart_aware  True      True       0               0        0  6,536.51
+final-31  control        True      True       0               0        0  4,861.01
+final-32  control        True      True       0               0        0  5,192.20
+final-33  control        True      True       0               0        0  6,728.52
+v0: summed training cost $17,924.46
+g1-289b1a: summed training cost $18,241.62
+g5-683c0e: summed training cost $16,135.24
+g4-eac5bd: summed training cost $16,061.45
+g5-e942f4: summed training cost $15,741.65
+restart_aware: summed training cost $16,695.84
+control: summed training cost $16,781.72

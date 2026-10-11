@@ -24,8 +24,8 @@ SCENARIOS: list[Scenario] = [
         "work overloads the cluster, 199,495 kWh unfinished even at full power"),
     _sc("dev-cap-11", "dev", "2026-04-01", 11, {**LOW, "event_cap_kw": 100.0},
         "dev-11-low with a 100 kW event cap; inference alone exceeds it, infeasible for the training controller"),
-    # Pre-declared at 1:45 p.m. before any run on them; seeds and starts were not chosen from results. The last
-    # start is Aug 31, not Sep 1, so the 29-day window ends inside the Sep 28 price data.
+    # Seeds and starts were set in the coordinator's 1:40 p.m. brief, before any run on them, and not chosen from
+    # results. Before the first run the last start moved from Sep 1 to Aug 31 so its window ends inside the Sep 28 data.
     *[sc for seed, start, inspected in ((21, "2026-07-01", False), (22, "2026-07-16", False), (23, "2026-08-01", False),
                                         (24, "2026-08-16", True), (25, "2026-08-30", True), (26, "2026-08-31", True))
       for sc in (
@@ -57,4 +57,3 @@ def final() -> list[Scenario]:
 
 def by_id(id: str) -> Scenario:
     return next(s for s in SCENARIOS if s["id"] == id)
-
