@@ -1,0 +1,548 @@
+{
+ "v0": {
+  "author": "baseline",
+  "acceptance": null,
+  "role": "champion",
+  "identity": {
+   "evaluator_version": "2026-10-11.3",
+   "manifest_sha256": "2bcfa8a47470714367a61e4ab65ac8d3494dcf281b1ec33b80afb5dc017895fb",
+   "policy_sha256": "b86632348339e87b5e12c3d9d823c663cd87cb0b621650bc6d105fec45737457",
+   "scenario_ids": [
+    "final-31",
+    "final-32",
+    "final-33"
+   ]
+  },
+  "scenarios": {
+   "final-31": {
+    "totals": {
+     "jobs_total": 12,
+     "jobs_completed": 12,
+     "jobs_late": 0,
+     "late_job_hours": 0,
+     "work_kwh": 81829.12594734755,
+     "productive_kwh": 81829.12594734755,
+     "overhead_kwh": 27721.62555179196,
+     "unfinished_kwh": 0.0,
+     "starts": 28,
+     "restarts": 16,
+     "cap_interventions": 0,
+     "infeasible_hours": 0,
+     "training_energy_cost": 5368.665498475161,
+     "total_energy_cost": 8072.341148988297
+    },
+    "passes": true,
+    "feasible": true
+   },
+   "final-32": {
+    "totals": {
+     "jobs_total": 11,
+     "jobs_completed": 11,
+     "jobs_late": 0,
+     "late_job_hours": 0,
+     "work_kwh": 85795.0253645598,
+     "productive_kwh": 85795.0253645598,
+     "overhead_kwh": 23766.804755567904,
+     "unfinished_kwh": 0.0,
+     "starts": 25,
+     "restarts": 14,
+     "cap_interventions": 0,
+     "infeasible_hours": 0,
+     "training_energy_cost": 5410.2049889287655,
+     "total_energy_cost": 8115.5424365133385
+    },
+    "passes": true,
+    "feasible": true
+   },
+   "final-33": {
+    "totals": {
+     "jobs_total": 15,
+     "jobs_completed": 15,
+     "jobs_late": 0,
+     "late_job_hours": 0,
+     "work_kwh": 104711.57816828067,
+     "productive_kwh": 104711.57816828067,
+     "overhead_kwh": 27847.01605600225,
+     "unfinished_kwh": 0.0,
+     "starts": 27,
+     "restarts": 12,
+     "cap_interventions": 0,
+     "infeasible_hours": 0,
+     "training_energy_cost": 7145.584791919341,
+     "total_energy_cost": 9835.244174911206
+    },
+    "passes": true,
+    "feasible": true
+   }
+  },
+  "training_cost": 17924.45527932327
+ },
+ "g1-289b1a": {
+  "author": "supervisor",
+  "acceptance": "repair",
+  "role": "champion",
+  "identity": {
+   "evaluator_version": "2026-10-11.3",
+   "manifest_sha256": "2bcfa8a47470714367a61e4ab65ac8d3494dcf281b1ec33b80afb5dc017895fb",
+   "policy_sha256": "9b8d1b53ad2dcf1fad4ec1820431bbbacbfed882ac1ec0ff969dff106a7d81e7",
+   "scenario_ids": [
+    "final-31",
+    "final-32",
+    "final-33"
+   ]
+  },
+  "scenarios": {
+   "final-31": {
+    "totals": {
+     "jobs_total": 12,
+     "jobs_completed": 12,
+     "jobs_late": 0,
+     "late_job_hours": 0,
+     "work_kwh": 81829.12594734755,
+     "productive_kwh": 81829.12594734755,
+     "overhead_kwh": 14629.12046205135,
+     "unfinished_kwh": 0.0,
+     "starts": 14,
+     "restarts": 2,
+     "cap_interventions": 0,
+     "infeasible_hours": 0,
+     "training_energy_cost": 5363.3891290866095,
+     "total_energy_cost": 8067.064779599753
+    },
+    "passes": true,
+    "feasible": true
+   },
+   "final-32": {
+    "totals": {
+     "jobs_total": 11,
+     "jobs_completed": 11,
+     "jobs_late": 0,
+     "late_job_hours": 0,
+     "work_kwh": 85795.0253645598,
+     "productive_kwh": 85795.0253645598,
+     "overhead_kwh": 11550.0,
+     "unfinished_kwh": 0.0,
+     "starts": 11,
+     "restarts": 0,
+     "cap_interventions": 0,
+     "infeasible_hours": 0,
+     "training_energy_cost": 5810.267869342279,
+     "total_energy_cost": 8515.605316926849
+    },
+    "passes": true,
+    "feasible": true
+   },
+   "final-33": {
+    "totals": {
+     "jobs_total": 15,
+     "jobs_completed": 15,
+     "jobs_late": 0,
+     "late_job_hours": 0,
+     "work_kwh": 104711.57816828067,
+     "productive_kwh": 104711.57816828067,
+     "overhead_kwh": 18918.11946309608,
+     "unfinished_kwh": 0.0,
+     "starts": 19,
+     "restarts": 4,
+     "cap_interventions": 0,
+     "infeasible_hours": 0,
+     "training_energy_cost": 7067.9659316515945,
+     "total_energy_cost": 9757.62531464346
+    },
+    "passes": true,
+    "feasible": true
+   }
+  },
+  "training_cost": 18241.62293008048
+ },
+ "g5-683c0e": {
+  "author": "supervisor",
+  "acceptance": "cost",
+  "role": "champion",
+  "identity": {
+   "evaluator_version": "2026-10-11.3",
+   "manifest_sha256": "2bcfa8a47470714367a61e4ab65ac8d3494dcf281b1ec33b80afb5dc017895fb",
+   "policy_sha256": "98d14593a43e9109af9e88f85b1c856fe9f3d445ac619f0fca9cf1757e941d7b",
+   "scenario_ids": [
+    "final-31",
+    "final-32",
+    "final-33"
+   ]
+  },
+  "scenarios": {
+   "final-31": {
+    "totals": {
+     "jobs_total": 12,
+     "jobs_completed": 12,
+     "jobs_late": 0,
+     "late_job_hours": 0,
+     "work_kwh": 81829.12594734755,
+     "productive_kwh": 81829.12594734755,
+     "overhead_kwh": 14700.0,
+     "unfinished_kwh": 0.0,
+     "starts": 14,
+     "restarts": 2,
+     "cap_interventions": 0,
+     "infeasible_hours": 0,
+     "training_energy_cost": 4644.151934049627,
+     "total_energy_cost": 7347.827584562764
+    },
+    "passes": true,
+    "feasible": true
+   },
+   "final-32": {
+    "totals": {
+     "jobs_total": 11,
+     "jobs_completed": 11,
+     "jobs_late": 0,
+     "late_job_hours": 0,
+     "work_kwh": 85795.0253645598,
+     "productive_kwh": 85795.0253645598,
+     "overhead_kwh": 12600.0,
+     "unfinished_kwh": 0.0,
+     "starts": 12,
+     "restarts": 1,
+     "cap_interventions": 0,
+     "infeasible_hours": 0,
+     "training_energy_cost": 4979.206162526743,
+     "total_energy_cost": 7684.543610111314
+    },
+    "passes": true,
+    "feasible": true
+   },
+   "final-33": {
+    "totals": {
+     "jobs_total": 15,
+     "jobs_completed": 15,
+     "jobs_late": 0,
+     "late_job_hours": 0,
+     "work_kwh": 104711.57816828067,
+     "productive_kwh": 104711.57816828067,
+     "overhead_kwh": 18900.0,
+     "unfinished_kwh": 0.0,
+     "starts": 18,
+     "restarts": 3,
+     "cap_interventions": 0,
+     "infeasible_hours": 0,
+     "training_energy_cost": 6511.883453680122,
+     "total_energy_cost": 9201.542836671988
+    },
+    "passes": true,
+    "feasible": true
+   }
+  },
+  "training_cost": 16135.241550256493
+ },
+ "g4-eac5bd": {
+  "author": "supervisor",
+  "acceptance": "cost",
+  "role": "champion",
+  "identity": {
+   "evaluator_version": "2026-10-11.3",
+   "manifest_sha256": "2bcfa8a47470714367a61e4ab65ac8d3494dcf281b1ec33b80afb5dc017895fb",
+   "policy_sha256": "f7c56db43a438aa830a58e870fa111ab79f6732835113c67606392c563795d45",
+   "scenario_ids": [
+    "final-31",
+    "final-32",
+    "final-33"
+   ]
+  },
+  "scenarios": {
+   "final-31": {
+    "totals": {
+     "jobs_total": 12,
+     "jobs_completed": 12,
+     "jobs_late": 0,
+     "late_job_hours": 0,
+     "work_kwh": 81829.12594734755,
+     "productive_kwh": 81829.12594734755,
+     "overhead_kwh": 13650.0,
+     "unfinished_kwh": 0.0,
+     "starts": 13,
+     "restarts": 1,
+     "cap_interventions": 0,
+     "infeasible_hours": 0,
+     "training_energy_cost": 4600.306224332337,
+     "total_energy_cost": 7303.9818748454745
+    },
+    "passes": true,
+    "feasible": true
+   },
+   "final-32": {
+    "totals": {
+     "jobs_total": 11,
+     "jobs_completed": 11,
+     "jobs_late": 0,
+     "late_job_hours": 0,
+     "work_kwh": 85795.0253645598,
+     "productive_kwh": 85795.0253645598,
+     "overhead_kwh": 12600.0,
+     "unfinished_kwh": 0.0,
+     "starts": 12,
+     "restarts": 1,
+     "cap_interventions": 0,
+     "infeasible_hours": 0,
+     "training_energy_cost": 4965.782116506743,
+     "total_energy_cost": 7671.119564091313
+    },
+    "passes": true,
+    "feasible": true
+   },
+   "final-33": {
+    "totals": {
+     "jobs_total": 15,
+     "jobs_completed": 15,
+     "jobs_late": 0,
+     "late_job_hours": 0,
+     "work_kwh": 104711.57816828067,
+     "productive_kwh": 104711.57816828067,
+     "overhead_kwh": 18900.0,
+     "unfinished_kwh": 0.0,
+     "starts": 18,
+     "restarts": 3,
+     "cap_interventions": 0,
+     "infeasible_hours": 0,
+     "training_energy_cost": 6495.3641605401235,
+     "total_energy_cost": 9185.023543531988
+    },
+    "passes": true,
+    "feasible": true
+   }
+  },
+  "training_cost": 16061.452501379204
+ },
+ "g5-e942f4": {
+  "author": "supervisor",
+  "acceptance": "cost",
+  "role": "champion",
+  "identity": {
+   "evaluator_version": "2026-10-11.3",
+   "manifest_sha256": "2bcfa8a47470714367a61e4ab65ac8d3494dcf281b1ec33b80afb5dc017895fb",
+   "policy_sha256": "6896a65335d56faf0073f6ecc402dfe73d4aebbdbe78e9400960ab16730a7750",
+   "scenario_ids": [
+    "final-31",
+    "final-32",
+    "final-33"
+   ]
+  },
+  "scenarios": {
+   "final-31": {
+    "totals": {
+     "jobs_total": 12,
+     "jobs_completed": 12,
+     "jobs_late": 0,
+     "late_job_hours": 0,
+     "work_kwh": 81829.12594734755,
+     "productive_kwh": 81829.12594734755,
+     "overhead_kwh": 14700.0,
+     "unfinished_kwh": 0.0,
+     "starts": 14,
+     "restarts": 2,
+     "cap_interventions": 0,
+     "infeasible_hours": 0,
+     "training_energy_cost": 4618.108123535829,
+     "total_energy_cost": 7321.783774048967
+    },
+    "passes": true,
+    "feasible": true
+   },
+   "final-32": {
+    "totals": {
+     "jobs_total": 11,
+     "jobs_completed": 11,
+     "jobs_late": 0,
+     "late_job_hours": 0,
+     "work_kwh": 85795.0253645598,
+     "productive_kwh": 85795.0253645598,
+     "overhead_kwh": 12600.0,
+     "unfinished_kwh": 0.0,
+     "starts": 12,
+     "restarts": 1,
+     "cap_interventions": 0,
+     "infeasible_hours": 0,
+     "training_energy_cost": 4927.00669114674,
+     "total_energy_cost": 7632.344138731312
+    },
+    "passes": true,
+    "feasible": true
+   },
+   "final-33": {
+    "totals": {
+     "jobs_total": 15,
+     "jobs_completed": 15,
+     "jobs_late": 0,
+     "late_job_hours": 0,
+     "work_kwh": 104711.57816828067,
+     "productive_kwh": 104711.57816828067,
+     "overhead_kwh": 18900.0,
+     "unfinished_kwh": 0.0,
+     "starts": 18,
+     "restarts": 3,
+     "cap_interventions": 0,
+     "infeasible_hours": 0,
+     "training_energy_cost": 6196.537007668488,
+     "total_energy_cost": 8886.196390660356
+    },
+    "passes": true,
+    "feasible": true
+   }
+  },
+  "training_cost": 15741.651822351057
+ },
+ "restart_aware": {
+  "author": "baseline",
+  "acceptance": null,
+  "role": "reference",
+  "identity": {
+   "evaluator_version": "2026-10-11.3",
+   "manifest_sha256": "2bcfa8a47470714367a61e4ab65ac8d3494dcf281b1ec33b80afb5dc017895fb",
+   "policy_sha256": "9e06665a2e43c853fa0df8bbfcaad9840d435a34b239b02f1d057ce6979389e4",
+   "scenario_ids": [
+    "final-31",
+    "final-32",
+    "final-33"
+   ]
+  },
+  "scenarios": {
+   "final-31": {
+    "totals": {
+     "jobs_total": 12,
+     "jobs_completed": 12,
+     "jobs_late": 0,
+     "late_job_hours": 0,
+     "work_kwh": 81829.12594734755,
+     "productive_kwh": 81829.12594734755,
+     "overhead_kwh": 17345.950778610968,
+     "unfinished_kwh": 0.0,
+     "starts": 17,
+     "restarts": 5,
+     "cap_interventions": 0,
+     "infeasible_hours": 0,
+     "training_energy_cost": 4830.978581786221,
+     "total_energy_cost": 7534.654232299359
+    },
+    "passes": true,
+    "feasible": true
+   },
+   "final-32": {
+    "totals": {
+     "jobs_total": 11,
+     "jobs_completed": 11,
+     "jobs_late": 0,
+     "late_job_hours": 0,
+     "work_kwh": 85795.0253645598,
+     "productive_kwh": 85795.0253645598,
+     "overhead_kwh": 16800.0,
+     "unfinished_kwh": 0.0,
+     "starts": 16,
+     "restarts": 5,
+     "cap_interventions": 0,
+     "infeasible_hours": 0,
+     "training_energy_cost": 5328.3470766743685,
+     "total_energy_cost": 8033.684524258941
+    },
+    "passes": true,
+    "feasible": true
+   },
+   "final-33": {
+    "totals": {
+     "jobs_total": 15,
+     "jobs_completed": 15,
+     "jobs_late": 0,
+     "late_job_hours": 0,
+     "work_kwh": 104711.57816828067,
+     "productive_kwh": 104711.57816828067,
+     "overhead_kwh": 22168.884492057754,
+     "unfinished_kwh": 0.0,
+     "starts": 23,
+     "restarts": 8,
+     "cap_interventions": 0,
+     "infeasible_hours": 0,
+     "training_energy_cost": 6536.51258120411,
+     "total_energy_cost": 9226.171964195973
+    },
+    "passes": true,
+    "feasible": true
+   }
+  },
+  "training_cost": 16695.8382396647
+ },
+ "control": {
+  "author": "control",
+  "acceptance": null,
+  "role": "reference",
+  "identity": {
+   "evaluator_version": "2026-10-11.3",
+   "manifest_sha256": "2bcfa8a47470714367a61e4ab65ac8d3494dcf281b1ec33b80afb5dc017895fb",
+   "policy_sha256": "4437ae9f38ff8223674206f6dc0df9c3e81f4fa9596029dc0ca1424d274d9c69",
+   "scenario_ids": [
+    "final-31",
+    "final-32",
+    "final-33"
+   ]
+  },
+  "scenarios": {
+   "final-31": {
+    "totals": {
+     "jobs_total": 12,
+     "jobs_completed": 12,
+     "jobs_late": 0,
+     "late_job_hours": 0,
+     "work_kwh": 81829.12594734755,
+     "productive_kwh": 81829.12594734755,
+     "overhead_kwh": 18900.0,
+     "unfinished_kwh": 0.0,
+     "starts": 18,
+     "restarts": 6,
+     "cap_interventions": 0,
+     "infeasible_hours": 0,
+     "training_energy_cost": 4861.006133433871,
+     "total_energy_cost": 7564.6817839470095
+    },
+    "passes": true,
+    "feasible": true
+   },
+   "final-32": {
+    "totals": {
+     "jobs_total": 11,
+     "jobs_completed": 11,
+     "jobs_late": 0,
+     "late_job_hours": 0,
+     "work_kwh": 85795.0253645598,
+     "productive_kwh": 85795.0253645598,
+     "overhead_kwh": 19404.10285134595,
+     "unfinished_kwh": 0.0,
+     "starts": 19,
+     "restarts": 8,
+     "cap_interventions": 0,
+     "infeasible_hours": 0,
+     "training_energy_cost": 5192.199857462707,
+     "total_energy_cost": 7897.537305047276
+    },
+    "passes": true,
+    "feasible": true
+   },
+   "final-33": {
+    "totals": {
+     "jobs_total": 15,
+     "jobs_completed": 15,
+     "jobs_late": 0,
+     "late_job_hours": 0,
+     "work_kwh": 104711.57816828067,
+     "productive_kwh": 104711.57816828067,
+     "overhead_kwh": 23118.11946309608,
+     "unfinished_kwh": 0.0,
+     "starts": 23,
+     "restarts": 8,
+     "cap_interventions": 0,
+     "infeasible_hours": 0,
+     "training_energy_cost": 6728.516305793687,
+     "total_energy_cost": 9418.17568878555
+    },
+    "passes": true,
+    "feasible": true
+   }
+  },
+  "training_cost": 16781.722296690266
+ }
+}
