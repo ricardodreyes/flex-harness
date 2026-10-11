@@ -48,7 +48,7 @@ Edit only what you own. `flex/contract.py` is frozen again. Ask the coordinator 
 | validation | Jul 1 to Sep 28, 2026. Seeds 24-26 overlap the Aug 30 window that was inspected and published earlier. | 21-26, each at low and high restart cost (12 scenarios, declared at 1:40 p.m. before any results) | The promotion gate. Repeated scoring here is selection feedback. Only the verdict reasons go back to the supervisor. |
 | final | Sep 29 to Oct 10, 2026. Nobody had inspected these prices before they were reserved at 12:55 p.m. | 31, 32, 33 | One frozen comparison through `flex.final`. Never fed back into any repair. |
 
-The final prices live outside the repo at `~/.config/flex/caiso_np15_dam_2026_final.json` (override with `FLEX_FINAL_PRICES`). Only `evaluate.run` reads them, and only for the final split; a test with a file-read spy checks that. They're public CAISO data, and an older copy is in the public git history, so this is held out by procedure and file location, not secrecy. The policy interpreter can't read files, and B must never put final data in a prompt. Say exactly that wherever isolation comes up.
+The final prices live outside the repo at `~/.config/flex/caiso_np15_dam_2026_final.json` (override with `FLEX_FINAL_PRICES`). Only `evaluate.run` and `evaluate.identity` read them, and only for final scenarios; a test with a file-read spy checks that. They're public CAISO data, and an older copy is in the public git history, so this is held out by procedure and file location, not secrecy. The supervisor model and the policy interpreter can't read files. The Python harness on this laptop can, so this isn't a security boundary. B must never put final data in a prompt. Say exactly that wherever isolation comes up.
 
 ## Acceptance rule
 
