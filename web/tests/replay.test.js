@@ -1,14 +1,21 @@
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { organizeReplay, sanitizeRecord } from '../src/replay.js';
 
-const fixture = JSON.parse(readFileSync(new URL('../public/replay.json', import.meta.url)));
+const fixture = JSON.parse(execFileSync('uv', ['run', '--frozen', 'python', '-c',
+  'import json; from web.scripts.export_replay import fixture, serialize; print(json.dumps(fixture(), default=serialize))'], {
+  cwd: fileURLToPath(new URL('../../', import.meta.url)), maxBuffer: 8 * 1024 * 1024,
+  env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1',
+    UV_PROJECT_ENVIRONMENT: fileURLToPath(new URL('../.venv', import.meta.url)),
+    UV_CACHE_DIR: fileURLToPath(new URL('../.cache/uv', import.meta.url)) },
+}));
 const copy = () => structuredClone(fixture);
 const repair = 'fixture-control-repair';
 const baseline = 'fixture-incumbent';
-const validationRun = fixture.runs.find(run => run.version === repair && run.split === 'validation');
-const scenarioId = validationRun.scenario;
+const scenarioId = fixture.focus.scenario;
 const scenario = fixture.scenarios.find(record => record.id === scenarioId);
 const expectedHours = scenario.arrival_days * 24 + scenario.tail_h;
 
@@ -47,10 +54,57 @@ test('hours join by h and jobs by id regardless of record order', () => {
 
 test('a later generation keeps its parent distinct from the frozen baseline', () => {
   const input = copy();
-  input.versions.find(version => version._id === 'fixture-control-cheap').parent = repair;
-  const comparison = organizeReplay(input).comparison('fixture-control-cheap', scenarioId);
-  assert.equal(comparison.parent.version, repair);
+  const ancestor = structuredClone(input.versions.find(version => version._id === baseline));
+  ancestor._id = 'ancestor';
+  ancestor.author = 'supervisor';
+  ancestor.parent = baseline;
+  input.versions.push(ancestor);
+  const parentRun = structuredClone(input.runs.find(run => run.version === baseline && run.scenario === scenarioId));
+  parentRun._id = `ancestor:${scenarioId}`;
+  parentRun.version = 'ancestor';
+  parentRun.jobs[0].done_h = 1;
+  input.runs.push(parentRun);
+  input.versions.find(version => version._id === repair).parent = 'ancestor';
+  const comparison = organizeReplay(input).comparison(repair, scenarioId);
+  assert.equal(comparison.parent.version, 'ancestor');
   assert.equal(comparison.baseline.version, baseline);
+  assert.equal(comparison.hoursAvailable, true);
+  assert.equal(comparison.jobs[0].before.done_h, comparison.baseline.jobs[0].done_h);
+  assert.notEqual(comparison.jobs[0].before.done_h, parentRun.jobs[0].done_h);
+  assert.equal(comparison.hours[0].before.meta.version, baseline);
+});
+
+test('focus opens the accepted repair even with a newer cost acceptance', () => {
+  const input = copy();
+  const cost = structuredClone(input.versions.find(version => version._id === repair));
+  cost._id = 'newest-cost';
+  cost.created_at = '2099-01-01T00:00:00Z';
+  cost.verdict.fixed = [];
+  cost.verdict.reasons = ['unparsed evaluator text'];
+  input.versions.push(cost);
+  for (const source of ['fixture', 'recorded evaluation replay', 'live']) {
+    input.source = source;
+    const data = organizeReplay(input);
+    assert.deepEqual(data.focus, { version: repair, scenario: 'val-26-high' });
+    assert.equal(data.versions.get(repair).acceptance, 'repair');
+    assert.equal(data.versions.get(cost._id).acceptance, 'cost');
+    assert.equal(data.versions.get(baseline).acceptance, null);
+    assert.deepEqual(data.versions.get(cost._id).verdict.reasons, ['unparsed evaluator text']);
+  }
+  delete input.focus;
+  assert.deepEqual(organizeReplay(input).focus, { version: repair, scenario: 'val-26-high' });
+});
+
+test('unknown or incompatible focus fails instead of opening another proposal', () => {
+  for (const focus of [{ version: 'missing', scenario: scenarioId }, { version: baseline, scenario: scenarioId },
+    { version: repair, scenario: 'missing' }]) {
+    const input = copy();
+    input.focus = focus;
+    assert.throws(() => organizeReplay(input), /focus/);
+  }
+  const input = copy();
+  input.runs.find(run => run.version === repair && run.scenario === scenarioId).identity.manifest_sha256 = 'other';
+  assert.throws(() => organizeReplay(input), /focus/);
 });
 
 test('retired baselines, ancestors and proposals retain comparisons and verbatim verdicts', () => {
@@ -88,6 +142,7 @@ test('retired baselines, ancestors and proposals retain comparisons and verbatim
 test('mismatched evaluator and manifest never become comparisons', () => {
   for (const field of ['evaluator_version', 'manifest_sha256', 'scenario_ids']) {
     const input = copy();
+    delete input.focus;
     const candidate = input.runs.find(run => run.version === repair && run.scenario === scenarioId);
     candidate.identity[field] = field === 'scenario_ids' ? [...candidate.identity.scenario_ids, 'unmatched-scenario'] : 'different';
     const comparison = organizeReplay(input).comparison(repair, scenarioId);
@@ -111,12 +166,14 @@ test('incomplete hours and jobs stay unavailable instead of becoming zeros', () 
 test('different operating inputs and workloads refuse before/after claims', () => {
   for (const field of ['ts', 'price', 'inference_kw', 'event', 'safety_limit_kw']) {
     const input = copy();
+    delete input.focus;
     const hour = input.hours.find(hour => hour.meta.version === repair && hour.meta.scenario === scenarioId);
     hour[field] = field === 'ts' ? '2020-01-01T00:00:00Z' : field === 'event' ? !hour.event : hour[field] + 1;
     assert.match(organizeReplay(input).comparison(repair, scenarioId).unavailable, /Operating inputs differ/);
   }
   for (const field of ['arrive_h', 'deadline_h', 'work_kwh']) {
     const input = copy();
+    delete input.focus;
     input.runs.find(run => run.version === repair && run.scenario === scenarioId).jobs[0][field] += 1;
     assert.match(organizeReplay(input).comparison(repair, scenarioId).unavailable, /Job workloads differ/);
   }
@@ -142,6 +199,9 @@ test('duplicate records and missing numeric totals fail at the boundary', () => 
   const missing = copy();
   delete missing.runs[0].totals.training_energy_cost;
   assert.throws(() => organizeReplay(missing), /Unavailable total training_energy_cost/);
+  const duplicate = copy();
+  duplicate.runs.push({ ...duplicate.runs[0], _id: 'another-id-for-the-same-run' });
+  assert.throws(() => organizeReplay(duplicate), /Duplicate or unlinked run/);
 });
 
 test('public artifact contains only replay and known fields exclude private extras', () => {
@@ -159,5 +219,6 @@ test('production assets contain no database module, URI or server environment va
   for (const file of readdirSync(assets)) {
     assert.doesNotMatch(readFileSync(new URL(file, assets), 'utf8'), /mongodb(?:\+srv)?:\/\/|MONGODB_READER_URI|MongoClient|loadEnvFile/);
   }
-  assert.equal(JSON.parse(readFileSync(new URL('replay.json', dist))).source, 'fixture');
+  assert.deepEqual(JSON.parse(readFileSync(new URL('replay.json', dist))),
+    JSON.parse(readFileSync(new URL('../public/replay.json', import.meta.url))));
 });

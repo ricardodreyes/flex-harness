@@ -1,29 +1,37 @@
-# Flex replay
+# Flex replay page
 
-The page follows one scheduling problem through diagnosis, an ordered policy diff, the evaluator verdict, and matched validation behavior. Every data panel labels its source. The tuned baseline remains beside each comparison.
+The page follows one scheduling problem through simulator diagnosis, ordered policy changes, an evaluator verdict, and matched validation behavior. Every data panel labels its source. The tuned baseline remains visible beside each comparison.
 
-The bundled fixture comes from `flex.sim` through `flex.evaluate.run`. It contains the incumbent and two hand-authored controls. None is supervisor-generated. Development runs supply the problem diagnosis. Only validation runs determine the displayed verdict. Verdicts and measurements are recomputed when the fixture is generated. The UI preserves evaluator reasons verbatim and uses structured verdict fields, including for retired versions kept in history.
+## Export a replay
+
+From the application repository root, run `uv run python web/scripts/export_replay.py`. It reads Atlas through `flex.store.client("reader")` and atomically writes `web/public/replay.json`.
+
+The export retains versions and development/validation run summaries with totals, jobs, and diagnosis. Verdict reasons stay verbatim. Accepted versions have `acceptance: "repair"` when `verdict.fixed` is nonempty, or `acceptance: "cost"` otherwise. Other versions have a null marker. Retired accepted versions remain eligible.
+
+The exporter selects the newest compatible accepted repair with a `val-26-high` run. Its `focus` names that version and scenario. Only the selected repair and compatible incumbent’s hourly streams are exported. Hours and misses must match the attempt referenced by their run summary. Incomplete, duplicate, or incompatible comparison evidence fails without replacing the existing file.
+
+For simulator evidence, run `uv run python web/scripts/export_replay.py --fixture`. This runs the real simulator and current validation evaluator. The proposals are hand-authored controls, never supervisor-generated. The fixture contains all validation summaries and the same bounded hourly comparison. Regenerate it after evaluator changes.
+
+The chart and job table compare the frozen incumbent with the selected proposal. Policy changes and verdicts still refer to the proposal’s actual parent. No reason text or current cost measurement drives selection.
 
 ## Run locally
 
-Use Node 22.12 or newer. From `web/` run `npm ci`, then `npm run dev`. Open the URL printed by Vite. Static replay is the default.
+Use Node 22.12 or newer. From `web/`, run `npm ci`, then `npm run dev`. Static replay is the default.
 
-From the application repository root, generate a fixture with `uv run python web/scripts/export_replay.py --fixture`. Export recorded Atlas data with `uv run python web/scripts/export_replay.py`. The latter uses only `flex.store.client('reader')` and needs Lane C's store implementation and reader credentials. Failed exports preserve the existing replay.
-
-For local live mode, run `npm run live` in a second terminal. Open the Vite URL with `?mode=live`. The API binds to `127.0.0.1:4174`. It loads the repository root `.env` on the server and uses only `MONGODB_READER_URI`. It exposes one fixed read-only endpoint. Missing credentials, unavailable Atlas, or malformed records produce an error, never fixture fallback. Production builds reject live mode.
+For local live mode, run `npm run live` in a second terminal and open the Vite URL with `?mode=live`. The API binds `127.0.0.1:4174`. It loads the repository root `.env` only on the server and uses `MONGODB_READER_URI`. Production live mode is disabled. Failed live reads do not fall back to fixtures.
 
 ## Verify
 
-Run `npm run build && npm test` from `web/`. The checks require the simulator fixture and production build. Run `uv run python web/scripts/check_fixture.py` from the repository root to check exported physics and validation verdicts. A normal recorded replay can replace the fixture for the page without running the fixture-specific checks.
+From `web/`, run `npm run build && npm test`. JavaScript checks generate their own simulator fixture through the repository’s uv environment, so they do not require the public artifact to remain a fixture.
 
-The browser joins hours by `h` and jobs by `id`. Runs must match scenario, evaluator version, manifest, and scenario coverage. Before/after traces also require identical operating inputs and workload. Missing hourly data, job outcomes, or simulator diagnosis remain explicitly unavailable. Invalid rejected policies retain their evaluator reasons without requiring a renderable rule diff.
+From the repository root, run `uv run python -m unittest discover -s web/tests -p 'test_*.py'`. For an exported simulator fixture, also run `uv run python web/scripts/check_fixture.py`.
+
+For browser checks, generate a fixture, build, and run `npm run preview -- --port 4173 --strictPort`. Run `node scripts/browser_check.mjs` with an installed Playwright and Chrome. On Ricardo’s machine, set `PLAYWRIGHT_PACKAGE=/opt/homebrew/lib/node_modules/@playwright/mcp/package.json`. Screenshots and results go into ignored `web/evidence/`.
 
 ## Static deployment boundary
 
-`npm run build` emits `dist/`. The only public data file is `public/replay.json`. The build has no MongoDB client, reader credentials, or server environment. The local API is not part of the static deployment.
+`modelence.config.json` uses `node-22-slim`, resource root `web`, build commands `npm ci` and `npm run build`, and static path `/` from `dist`. The build includes replay data and browser assets. It does not include the reader server, MongoDB client, or credentials.
 
-`modelence.config.json` follows the requested `root: web` static build. Its schema is `https://cloud.modelence.com/schema/modelence.config.json?version=1`. The coordinator must place this config at the repository root before deployment because this lane can write only inside `web/`. Do not change the resource root to compensate for the temporary config location.
+The config is kept under `web/` as requested. Modelence’s deployment entry expects it at the repository root, so the coordinator must place it there while retaining `root: web` before deployment. See the [official setup instructions](https://docs.modelence.com/deploy/setup.md).
 
-Modelence deployment requires Ricardo's approval and account. No deployment is included here. Atlas replay rendering remains a separate check after Lanes B and C land. The fixture makes no final-evaluation claim.
-
-The browser check targets a production preview with the simulator fixture. Run `npm run preview -- --port 4173 --strictPort`, then `node scripts/browser_check.mjs` with an installed Playwright and Chrome. On Ricardo’s machine, set `PLAYWRIGHT_PACKAGE=/opt/homebrew/lib/node_modules/@playwright/mcp/package.json`. The check saves screenshots and a result log in ignored `web/evidence/`. It covers keyboard controls, mobile overflow, rejected and incomplete records, costly repairs, loading/errors, and disabled production live mode.
+Do not deploy until Ricardo confirms that the final replay is exported. Then follow the requested Modelence skill and let Ricardo confirm in the browser. This lane’s local verification does not deploy anything.

@@ -17,8 +17,10 @@ for run in runs.values():
     totals = run["totals"]
     hours = [hour for hour in replay["hours"] if hour["meta"]["run"] == run["_id"]]
     scenario = scenarios[run["scenario"]]
-    assert len(hours) == scenario["arrival_days"] * 24 + scenario["tail_h"], "Every scenario hour must survive the export."
     assert len(run["jobs"]) == totals["jobs_total"], "Every simulated job must survive the export."
+    if not hours:
+        continue
+    assert len(hours) == scenario["arrival_days"] * 24 + scenario["tail_h"], "Each exported stream must contain every scenario hour."
     assert abs(sum(hour["productive_kw"] for hour in hours) - totals["productive_kwh"]) < 0.01
     assert abs(sum(hour["overhead_kw"] for hour in hours) - totals["overhead_kwh"]) < 0.01
     for hour in hours:
@@ -31,6 +33,10 @@ for version in versions.values():
         return {run["scenario"]: {"totals": run["totals"], "diagnosis": run["diagnosis"]}
                 for run in runs.values() if run["version"] == version_id and run["split"] == "validation"}
     assert accept(version["policy"], results(version["parent"]), results(version["_id"])) == version["verdict"], "Fixture verdict must match validation-only evaluation."
+    expected = ("repair" if version["verdict"]["fixed"] else "cost") if version["verdict"]["accepted"] else None
+    assert version["acceptance"] == expected, "Acceptance kind comes from the structured verdict."
+assert {hour["meta"]["scenario"] for hour in replay["hours"]} == {"val-26-high"}
+assert len({hour["meta"]["run"] for hour in replay["hours"]}) == 2, "Only frozen baseline and accepted repair hours are exported."
 invalid = sanitize("versions", {"policy": {"rules": [None, {"when": [None], "secret": "remove"}]},
                                 "verdict": {"accepted": False, "reasons": ["invalid policy"]}})
 assert invalid["policy"]["rules"][0] is None

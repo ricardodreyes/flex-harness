@@ -37,6 +37,9 @@ try {
     assert.equal((await panel.locator(':scope > .section-top .source').textContent()).trim(), '● fixture');
   }
   assert.equal(await page.locator('svg[role="img"]').count(), 4);
+  assert.equal(await page.locator('#proposal').inputValue(), fixture.focus.version);
+  assert.equal(await page.locator('#scenario').inputValue(), fixture.focus.scenario);
+  await page.locator('section.panel').nth(2).getByText('Accepted repair', { exact: true }).waitFor();
   assert.match(await page.locator('.hero-note').innerText(), /hand-authored controls/i);
   await noOverflow();
   await screenshot('fixture-desktop.png');
@@ -108,13 +111,13 @@ try {
   repair.verdict.cost_delta_pct = 12.34;
   await replace(expensive);
   await page.locator('#proposal').selectOption(repair._id);
-  await page.locator('section.panel').nth(2).getByText('Accepted', { exact: true }).waitFor();
+  await page.locator('section.panel').nth(2).getByText('Accepted repair', { exact: true }).waitFor();
   assert.match(await page.locator('section.panel').nth(2).innerText(), /\+12\.34%/);
   assert.match(await page.locator('section.panel').nth(2).innerText(), /Deadlines restored/);
   results.push('An injected costly repair displays its positive cost change plainly.');
 
 
-  await replace({ ...fixture, versions: [], runs: [], hours: [], misses: [] });
+  await replace({ ...fixture, focus: undefined, versions: [], runs: [], hours: [], misses: [] });
   assert.match(await page.locator('main').innerText(), /No recorded proposal/i);
   results.push('An empty replay shows a named empty state.');
 

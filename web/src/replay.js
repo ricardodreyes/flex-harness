@@ -30,6 +30,7 @@ export function sanitizeRecord(kind, input) {
       return rule;
     });
     if (record.verdict) record.verdict = pick(record.verdict, ['accepted', 'reasons', 'fixed', 'regressed', 'cost_delta_pct']);
+    record.acceptance = record.verdict?.accepted ? record.verdict.fixed?.length ? 'repair' : 'cost' : null;
   }
   if (kind === 'runs') {
     record.totals = pick(record.totals, totalFields);
@@ -86,8 +87,11 @@ export function organizeReplay(input) {
     versions.set(version._id, version);
   }
   const runs = new Map();
+  const runKeys = new Set();
   for (const record of replay.runs) {
-    requireValue(text(record._id) && !runs.has(record._id) && versions.has(record.version) && text(record.scenario), 'Duplicate or unlinked run.');
+    const key = JSON.stringify([record.version, record.scenario]);
+    requireValue(text(record._id) && !runs.has(record._id) && !runKeys.has(key) && versions.has(record.version) && text(record.scenario), 'Duplicate or unlinked run.');
+    runKeys.add(key);
     requireValue(['dev', 'validation'].includes(record.split), 'Final runs are outside this demonstration.');
     validateIdentity(record.identity);
     requireValue(record.identity.scenario_ids.includes(record.scenario), 'Run scenario is absent from its evaluation identity.');
@@ -118,7 +122,7 @@ export function organizeReplay(input) {
     record.hours.push(hour);
   }
   for (const record of runs.values()) record.hours.sort((a, b) => a.h - b.h);
-  const newest = (a, b) => String(b.created_at).localeCompare(String(a.created_at));
+  const newest = (a, b) => String(b.created_at).localeCompare(String(a.created_at)) || b._id.localeCompare(a._id);
   const runList = [...runs.values()].sort(newest);
   const baselines = replay.versions.filter(version => version.author === 'baseline');
   const proposals = replay.versions.filter(version => version.parent !== null).sort((a, b) => Number(b.verdict?.accepted) - Number(a.verdict?.accepted) || newest(a, b));
@@ -131,11 +135,11 @@ export function organizeReplay(input) {
     const baseline = find(baselines.map(record => record._id));
     let unavailable = !parent ? 'Parent run with matching evaluator and manifest unavailable.'
       : !baseline ? 'Tuned baseline with matching evaluator and manifest unavailable.' : null;
-    const beforeHours = new Map((parent?.hours ?? []).map(hour => [hour.h, hour]));
+    const beforeHours = new Map((baseline?.hours ?? []).map(hour => [hour.h, hour]));
     const afterHours = new Map(candidate.hours.map(hour => [hour.h, hour]));
     const hourIds = [...new Set([...beforeHours.keys(), ...afterHours.keys()])].sort((a, b) => a - b);
     const hours = hourIds.map(h => ({ h, before: beforeHours.get(h), after: afterHours.get(h) }));
-    const beforeJobs = new Map((parent?.jobs ?? []).map(job => [job.id, job]));
+    const beforeJobs = new Map((baseline?.jobs ?? []).map(job => [job.id, job]));
     const afterJobs = new Map((candidate.jobs ?? []).map(job => [job.id, job]));
     const jobs = [...new Set([...beforeJobs.keys(), ...afterJobs.keys()])].map(id => ({ id, before: beforeJobs.get(id), after: afterJobs.get(id) }));
     const scenario = replay.scenarios.find(item => item.id === scenarioId);
@@ -143,8 +147,8 @@ export function organizeReplay(input) {
     const hoursAvailable = hours.length > 0 && hours.every((hour, index) => hour.h === index && hour.before && hour.after)
       && (expectedHours === null || hours.length === expectedHours);
     const inputsMatch = hoursAvailable && hours.every(hour => ['ts', 'price', 'inference_kw', 'event', 'safety_limit_kw'].every(key => hour.before[key] === hour.after[key]));
-    const jobsAvailable = parent?.jobs !== undefined && candidate.jobs !== undefined
-      && parent.jobs.length === parent.totals.jobs_total && candidate.jobs.length === candidate.totals.jobs_total
+    const jobsAvailable = baseline?.jobs !== undefined && candidate.jobs !== undefined
+      && baseline.jobs.length === baseline.totals.jobs_total && candidate.jobs.length === candidate.totals.jobs_total
       && jobs.every(job => job.before && job.after);
     const workloadsMatch = jobsAvailable && jobs.every(job => ['arrive_h', 'deadline_h', 'work_kwh'].every(key => job.before[key] === job.after[key]));
     if (hoursAvailable && !inputsMatch) unavailable = 'Operating inputs differ. Before/after comparison is unavailable.';
@@ -153,5 +157,17 @@ export function organizeReplay(input) {
       hoursAvailable: hoursAvailable && inputsMatch,
       jobsAvailable: jobsAvailable && workloadsMatch };
   };
-  return { ...replay, versions, runs, runList, proposals, comparison };
+  let focus = input.focus;
+  if (focus !== undefined) {
+    requireValue(focus && text(focus.version) && text(focus.scenario)
+      && versions.get(focus.version)?.acceptance === 'repair', 'Invalid replay focus.');
+    const selected = comparison(focus.version, focus.scenario);
+    requireValue(selected.candidate?.split === 'validation' && !selected.unavailable, 'Replay focus does not match compatible validation runs.');
+    focus = { version: focus.version, scenario: focus.scenario };
+  } else {
+    const repair = proposals.filter(version => version.acceptance === 'repair').sort(newest)
+      .find(version => runList.some(record => record.version === version._id && record.scenario === 'val-26-high'));
+    if (repair) focus = { version: repair._id, scenario: 'val-26-high' };
+  }
+  return { ...replay, focus, versions, runs, runList, proposals, comparison };
 }
