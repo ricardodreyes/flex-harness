@@ -1,0 +1,29 @@
+{
+ "label": "exploratory ablation after the freeze; not part of the frozen final",
+ "run_at": "2026-10-11T22:37:48.144675+00:00",
+ "scenarios": [
+  "final-31",
+  "final-32",
+  "final-33"
+ ],
+ "results": {
+  "g5-e942f4": {
+   "training_energy_cost": 15741.651822351057,
+   "late_job_hours": 0,
+   "unfinished_kwh": 0.0,
+   "overhead_kwh": 46200.0,
+   "restarts": 6,
+   "jobs_completed": 38,
+   "trickle_hours": 133
+  },
+  "g5-e942f4 without 1% keep-warm rule": {
+   "training_energy_cost": 17157.386165053398,
+   "late_job_hours": 0,
+   "unfinished_kwh": 0.0,
+   "overhead_kwh": 74701.28531576291,
+   "restarts": 36,
+   "jobs_completed": 38,
+   "trickle_hours": 0
+  }
+ }
+}
