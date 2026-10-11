@@ -12,32 +12,36 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 _ready = False
 
 
-def _client():
+def _client(key: str):
     global _ready
     import raindrop.analytics as raindrop
     if not _ready:
-        raindrop.init(api_key=os.environ["RAINDROP_WRITE_KEY"], tracing_enabled=False)
+        raindrop.init(api_key=key, tracing_enabled=False)
         _ready = True
     return raindrop
 
 
-def record(proposal: dict, verdict: Verdict, version_id: str):
-    if not os.environ.get("RAINDROP_WRITE_KEY"):
+def record(proposal: dict, verdict: Verdict, version_id: str, acceptance: str | None = None):
+    key = os.environ.get("RAINDROP_WRITE_KEY")
+    if not key:
         return
     props = {"version": version_id, "accepted": verdict["accepted"], "reasons": "; ".join(verdict["reasons"])}
+    if acceptance:
+        props["acceptance"] = acceptance
     if verdict["cost_delta_pct"] is not None:
         props["cost_delta_pct"] = verdict["cost_delta_pct"]
     try:
-        _client().track_ai(user_id="flex-supervisor", event="proposal", model=proposal.get("model"),
-                           input=proposal["predicted"], output=proposal["rationale"], properties=props)
+        _client(key).track_ai(user_id="flex-supervisor", event="proposal", model=proposal.get("model"),
+                              input=proposal["predicted"], output=proposal["rationale"], properties=props)
     except Exception as e:
-        print(f"telemetry: {type(e).__name__}: {e}")
+        print(f"telemetry: {type(e).__name__}")
 
 
 def flush():
-    if not _ready:
+    key = os.environ.get("RAINDROP_WRITE_KEY")
+    if not key or not _ready:
         return
     try:
-        _client().flush()
+        _client(key).flush()
     except Exception as e:
-        print(f"telemetry: {type(e).__name__}: {e}")
+        print(f"telemetry: {type(e).__name__}")

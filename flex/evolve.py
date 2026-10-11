@@ -31,6 +31,8 @@ class JsonlStore:
         self._write("versions.jsonl", [r for r in self._read("versions.jsonl") if r["_id"] != v["_id"]] + [v])
 
     def save_run(self, run: Run, result: SimResult):
+        if any(m["run"] != run["_id"] for m in result["misses"]):
+            raise ValueError(f"misses don't belong to run {run['_id']}")
         self._write("runs.jsonl", [r for r in self._read("runs.jsonl") if r["_id"] != run["_id"]]
                     + [{**run, "diagnosis": result["diagnosis"], "jobs": result["jobs"]}])
         self._write("misses.jsonl", [r for r in self._read("misses.jsonl") if r["run"] != run["_id"]]
@@ -41,7 +43,7 @@ class JsonlStore:
         assert any(r["_id"] == version_id for r in rows), f"no harness version {version_id}"
         for r in rows:
             if r["status"] == "champion":
-                r["status"] = "candidate"
+                r["status"] = "retired"
             if r["_id"] == version_id:
                 r["status"], r["verdict"] = "champion", verdict
         self._write("versions.jsonl", rows)
@@ -97,23 +99,28 @@ def evolve(store, gens: int):
         try:
             p = supervisor.propose(champ, champ_dev, _late_misses(champ_dev), rejected)
         except Exception as e:
-            print(f"g{gen}: proposal failed, {type(e).__name__}: {e}")
+            print(f"g{gen}: proposal failed, {type(e).__name__}")
             continue
         vid = f"g{gen}-{uuid4().hex[:6]}"
-        if validate(p["policy"]):
+        if p["error"]:
+            verdict = {"accepted": False, "reasons": [f"unparseable proposal: {p['error']}"], "fixed": [],
+                       "regressed": [], "cost_delta_pct": None}
+        elif validate(p["policy"]):
             verdict = evaluate.accept(p["policy"], champ_val, {})
         else:
             verdict = evaluate.accept(p["policy"], champ_val, _score(store, vid, p["policy"], validation()))
+        acceptance = ("repair" if verdict["fixed"] else "cost") if verdict["accepted"] else None
         store.save_version({"_id": vid, "parent": champ["_id"], "policy": p["policy"], "rationale": p["rationale"],
                             "predicted": p["predicted"], "author": "supervisor", "verdict": verdict,
                             "identity": evaluate.identity(p["policy"], validation()),
                             "status": "candidate" if verdict["accepted"] else "rejected",
+                            **({"acceptance": acceptance} if acceptance else {}),
                             "created_at": datetime.now(timezone.utc)})
         if verdict["accepted"]:
             store.promote(vid, verdict)
-        telemetry.record(p, verdict, vid)
+        telemetry.record(p, verdict, vid, acceptance)
         cost = verdict["cost_delta_pct"]
-        print(f"{vid} {'ACCEPT' if verdict['accepted'] else 'REJECT'} {'; '.join(verdict['reasons'])} | cost "
+        print(f"{vid} {f'ACCEPT {acceptance}' if acceptance else 'REJECT'} {'; '.join(verdict['reasons'])} | cost "
               f"{f'{cost:+.2f}%' if cost is not None else 'n/a'} | predicted: {p['predicted']}\n    {p['rationale']}")
 
 

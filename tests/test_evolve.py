@@ -1,8 +1,10 @@
+import json
+
 import pytest
 
-from flex import evolve, supervisor, telemetry
+from flex import evaluate, evolve, final, supervisor, telemetry
 from flex.evaluate import accept, run
-from flex.scenarios import dev, validation
+from flex.scenarios import by_id, dev, validation
 from policies.control_repair import CONTROL_REPAIR
 from policies.incumbent import INCUMBENT
 from policies.restart_aware import RESTART_AWARE
@@ -14,7 +16,8 @@ def quiet_telemetry(monkeypatch):
 
 
 def stub(monkeypatch, policy):
-    monkeypatch.setattr(supervisor, "propose", lambda *a: {"policy": policy, "rationale": "stub", "predicted": "stub"})
+    monkeypatch.setattr(supervisor, "propose", lambda *a: {"policy": policy, "rationale": "stub", "predicted": "stub",
+                                                          "model": "stub", "usage": {}, "error": None})
 
 
 @pytest.mark.parametrize("bad", [
@@ -42,7 +45,7 @@ def test_stores_the_evaluator_verdict_and_promotes_only_on_accept(tmp_path, monk
     assert cand["verdict"] == expected and cand["parent"] == "v0" and cand["policy"] == RESTART_AWARE
     status = {v["_id"]: v["status"] for v in store.versions()}
     if expected["accepted"]:
-        assert store.champion()["_id"] == cand["_id"] and status["v0"] == "candidate"
+        assert store.champion()["_id"] == cand["_id"] and status["v0"] == "retired"
     else:
         assert store.champion()["_id"] == "v0" and status[cand["_id"]] == "rejected"
 
@@ -60,3 +63,58 @@ def test_evidence_holds_dev_only():
     text = supervisor.evidence({"_id": "v0", "policy": INCUMBENT}, run(INCUMBENT, dev(), "v0"), [], [])
     assert "val-" not in text and "final-" not in text
     assert supervisor._dump(CONTROL_REPAIR["rules"]) not in text
+
+
+def test_read_proposal_keeps_unknown_keys_and_evolve_stores_them_rejected(tmp_path, monkeypatch):
+    policy = {**INCUMBENT, "surprise": 1}
+    env = supervisor.read_proposal(json.dumps({"policy": policy, "rationale": "r", "predicted": "p"}))
+    assert env["policy"] == policy and env["error"] is None
+    store = evolve.JsonlStore(tmp_path)
+    monkeypatch.setattr(supervisor, "propose", lambda *a: env)
+    evolve.evolve(store, 1)
+    cand = next(v for v in store.versions() if v["author"] == "supervisor")
+    assert cand["policy"] == policy and cand["status"] == "rejected" and not cand["verdict"]["accepted"]
+    assert "acceptance" not in cand
+
+
+def test_unparseable_response_is_a_stored_rejection_without_validation(tmp_path, monkeypatch):
+    env = {**supervisor.read_proposal("not json"), "model": "stub", "usage": {}}
+    assert env["error"] and env["policy"] == {"raw": "not json"}
+    store = evolve.JsonlStore(tmp_path)
+    monkeypatch.setattr(supervisor, "propose", lambda *a: env)
+    evolve.evolve(store, 1)
+    cand = next(v for v in store.versions() if v["author"] == "supervisor")
+    assert cand["status"] == "rejected" and cand["verdict"]["reasons"][0].startswith("unparseable proposal: ")
+    assert not any(r["version"] == cand["_id"] for r in store._read("runs.jsonl"))
+    assert store.champion()["_id"] == "v0"
+
+
+@pytest.mark.parametrize("fixed, acceptance", [(["val-21-high"], "repair"), ([], "cost")])
+def test_acceptance_is_marked_and_promotes(tmp_path, monkeypatch, fixed, acceptance):
+    store = evolve.JsonlStore(tmp_path)
+    stub(monkeypatch, {**INCUMBENT, "default_power": 0.0})
+    monkeypatch.setattr(evaluate, "accept", lambda *a: {"accepted": True, "reasons": ["stub"], "fixed": fixed,
+                                                        "regressed": [], "cost_delta_pct": -2.0})
+    evolve.evolve(store, 1)
+    cand = next(v for v in store.versions() if v["author"] == "supervisor")
+    assert cand["acceptance"] == acceptance and store.champion()["_id"] == cand["_id"]
+    assert {v["_id"]: v["status"] for v in store.versions()}["v0"] == "retired"
+
+
+def test_evidence_leaves_out_notes_and_infeasible_scenarios():
+    results = run(INCUMBENT, dev(), "v0")
+    text = supervisor.evidence({"_id": "v0", "policy": INCUMBENT}, results, [], [])
+    assert "dev-imp-11" not in text and "dev-cap-11" not in text
+    assert "val-" not in text and "final-" not in text
+    assert not any(by_id(s)["note"] in text for s in results)
+
+
+def test_final_refuses_when_the_manifest_exists(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(final, "RESULTS", tmp_path)
+    manifest = tmp_path / "final_manifest.json"
+    manifest.write_bytes(b'{"frozen": true}')
+    with pytest.raises(SystemExit) as e:
+        final.main([])
+    assert e.value.code and manifest.read_bytes() == b'{"frozen": true}'
+    assert [p.name for p in tmp_path.iterdir()] == ["final_manifest.json"]
+    assert "final_manifest.json" in capsys.readouterr().out

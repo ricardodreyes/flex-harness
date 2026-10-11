@@ -8,8 +8,9 @@ import anthropic
 from dotenv import load_dotenv
 from pydantic import BaseModel
 
+from flex import evaluate
 from flex.contract import OBS_FIELDS, HarnessVersion, Miss, Op, SimResult
-from flex.scenarios import by_id
+from flex.scenarios import dev
 
 load_dotenv(Path(__file__).parent.parent / ".env")
 
@@ -56,9 +57,10 @@ FIELD_DOCS = {
     "need_h": "Hours at the 700 kW ceiling to finish all queued work, excluding warm-up.",
     "queued_jobs": "Number of jobs queued.",
     "running": "True when the earliest-deadline job got power last hour, so it is warm (bool).",
-    "restart_kwh": "Warm-up energy each cold start owes. Set by the scenario, read-only.",
+    "restart_kwh": "Operator observation of the warm-up energy each cold start owes.",
 }
 assert set(FIELD_DOCS) == set(OBS_FIELDS)
+SCHEMA = anthropic.transform_schema(Proposal)
 
 SYSTEM = f"""You supervise a training-power scheduler for an AI data center. Each hour the scheduler requests a \
 training fraction of the 700 kW ceiling. Its policy is an ordered rule list: the first rule whose conditions all hold \
@@ -68,8 +70,8 @@ edit decides whether it is accepted.
 Physics, identical for every policy:
 - One step is one hour, so kW drawn equals kWh. Work is measured in productive training kWh; a 4,200 kWh job takes 6 \
 hours at the ceiling.
-- During grid events a safety controller limits training to max(0, event_cap_kw - inference_kw). Requesting more than \
-that is a cap intervention and counts as a failure.
+- During grid events a safety controller limits training to the site cap minus inference load, never below zero. \
+Requesting more than that is a cap intervention and counts as a failure.
 - Executed power is the smallest of the request, the safety limit, and what the queue can absorb.
 - Power goes to active jobs earliest-deadline first. A job that receives no power in an hour goes cold. Every start \
 of a cold job owes restart_kwh of warm-up first: drawn and billed, but no progress. Pausing is therefore not free \
@@ -87,7 +89,6 @@ Policy bounds, enforced by a validator. A proposal that breaks them is recorded 
 - Bool fields (event_now, running) take a bool value and only ==.
 - A condition value is a number or a field reference {{field, times, plus}} meaning field * times + plus. times is in \
 [0, 100]. A reference cannot point at a bool field.
-Scenario settings (restart_kwh, event_cap_kw, work_scale) are fixed and not editable.
 
 Observation fields:
 {chr(10).join(f"- {k}: {v}" for k, v in FIELD_DOCS.items())}
@@ -103,34 +104,57 @@ def _dump(x) -> str:
 
 def evidence(champion: HarnessVersion, dev_results: dict[str, SimResult], misses: list[Miss],
              rejected: list[HarnessVersion]) -> str:
+    """Infeasible scenarios and scenario notes stay out: no policy can act on them."""
+    assert set(dev_results) <= {s["id"] for s in dev()}, "evidence takes dev results only"
+    results = {sid: r for sid, r in dev_results.items() if evaluate.feasible(r)}
     parts = [f"Champion policy ({champion['_id']}):\n{_dump(champion['policy'])}"]
-    for sid, r in dev_results.items():
-        sc = by_id(sid)
-        assert sc["split"] == "dev", f"{sid} is not a dev scenario"
-        parts.append(f"Scenario {sid}: {sc['note']}\nTotals: {_dump(r['totals'])}\nDiagnosis:\n"
+    for sid, r in results.items():
+        parts.append(f"Scenario {sid}\nTotals: {_dump(r['totals'])}\nDiagnosis:\n"
                      + "\n".join(f"- {d}" for d in r["diagnosis"]))
     parts.append("Recent misses:\n" + _dump([{k: v for k, v in m.items() if k not in ("run", "version")}
-                                              for m in misses]))
+                                              for m in misses if m["scenario"] in results]))
     parts.append("Recent rejected proposals:\n" + _dump([
         {"policy": v["policy"], "predicted": v["predicted"], "reasons": v.get("verdict", {}).get("reasons", [])}
         for v in rejected[-5:]]))
     return "\n\n".join(parts)
 
 
+def _short(e: Exception) -> str:
+    return f"{type(e).__name__}: {str(e)[:120]}"
+
+
+def _raw(text: str, error: str) -> dict:
+    return {"policy": {"raw": text[:2000]}, "rationale": "", "predicted": "", "error": error}
+
+
+def read_proposal(text: str) -> dict:
+    """The model's JSON as sent: the policy is never round-tripped, so the validator sees exactly what it wrote."""
+    try:
+        obj = json.loads(text)
+    except ValueError as e:
+        return _raw(text, _short(e))
+    text_of = {k: obj[k] for k in ("rationale", "predicted") if isinstance(obj, dict) and isinstance(obj.get(k), str)}
+    if isinstance(obj, dict) and "policy" in obj and len(text_of) == 2:
+        return {"policy": obj["policy"], **text_of, "error": None}
+    return {"policy": obj, "rationale": "", "predicted": "", **text_of,
+            "error": "response is not an object with policy, rationale and predicted"}
+
+
 def propose(champion: HarnessVersion, dev_results: dict[str, SimResult], misses: list[Miss],
             rejected: list[HarnessVersion]) -> dict:
     # 32000 non-streaming tokens trips the SDK's 10 minute guard, so stream
     with anthropic.Anthropic().beta.messages.stream(
-            model="claude-opus-5-5", max_tokens=32000, thinking={"type": "adaptive"}, output_config={"effort": "high"},
+            model="claude-opus-5-5", max_tokens=32000, thinking={"type": "adaptive"},
+            output_config={"effort": "high", "format": {"type": "json_schema", "schema": SCHEMA}},
             betas=["server-side-fallback-2026-07-01"], fallbacks="default", system=SYSTEM,
-            messages=[{"role": "user", "content": evidence(champion, dev_results, misses, rejected)}],
-            output_format=Proposal) as stream:
+            messages=[{"role": "user", "content": evidence(champion, dev_results, misses, rejected)}]) as stream:
         response = stream.get_final_message()
+    text = "".join(b.text for b in response.content if b.type == "text")
     if response.stop_reason == "refusal":
-        raise RuntimeError(f"model refused: {response.stop_details}")
-    if response.parsed_output is None:
-        raise RuntimeError(f"no parsed output, stop_reason {response.stop_reason}")
-    p = response.parsed_output
-    return {"policy": p.policy.model_dump(), "rationale": p.rationale, "predicted": p.predicted,
-            "model": response.model, "usage": {"input_tokens": response.usage.input_tokens,
-                                              "output_tokens": response.usage.output_tokens}}
+        env = _raw(text, f"model refused, category {response.stop_details and response.stop_details.category}")
+    elif response.stop_reason == "max_tokens":
+        env = _raw(text, "hit max_tokens")
+    else:
+        env = read_proposal(text)
+    return {**env, "model": response.model,
+            "usage": {"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}}
