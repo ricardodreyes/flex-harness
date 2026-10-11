@@ -1,5 +1,7 @@
 # Flex
 
+Restart costs rose 30x (35 to 1,050 kWh per cold start). The frozen scheduler passed 10 of 12 validation scenarios. Claude's first accepted repair passed 12 of 12, and every later champion kept 12 of 12. On 12 unseen days the champion at the freeze (`g5-e942f4`) cut training electricity cost 12.18% with zero missed deadlines. An ablation after the freeze shows most of that comes from one rule that holds paused jobs at 1% power to stay warm, which our simulator allows and real GPUs likely don't. Without that rule the saving is 4.28%, behind both hand-tuned references.
+
 Flex adapts the training-power scheduler of an AI data center when operating conditions change. A supervisor model reads the scheduler's development diagnostics and proposes a changed policy. A fixed evaluator that the supervisor can't edit decides whether to accept the change. MongoDB Atlas stores every version, run, hour, miss, and verdict, and holds the pointer to the current champion.
 
 Flex targets the Recursive Harnessing problem statement: a harness that changes its own rules and context to fit a task.
@@ -46,9 +48,22 @@ Priorities, in order, are physical limits, then deadlines and completed work, th
 3. A candidate that makes any feasible scenario worse is rejected for regression. Worse means more late job-hours, more unfinished work, more cap interventions, or fewer completed jobs. Abandoning work can't win.
 4. A candidate that passes a scenario the champion failed is accepted as a repair. Its cost change is reported even when the cost goes up.
 5. Fewer late hours without a pass is rejected as partial progress.
-6. Otherwise no scenario got worse and none was repaired. The candidate is accepted only if training energy cost drops by more than 1% of the champion's cost.
+6. Otherwise no scenario got worse and none was repaired. The candidate is accepted only if training electricity cost drops by more than 1% of the champion's cost.
 
 A scenario passes with zero late job-hours, zero unfinished work, and zero cap interventions. Scenarios that are capacity-impossible or that have infeasible hours are reported and left out of pass and fail.
+
+Verdict reasons say "training energy"; the number is training electricity cost in dollars.
+
+## What the agent can't edit
+
+Deadlines, physical limits, protected settings, and the evaluator are deliberately outside what the agent can edit. The supervisor only ever returns a policy. Four mechanisms hold the rest in place:
+
+- The simulator's safety controller limits training to the site cap during grid events, whatever the policy requests.
+- `flex.policy.validate` rejects a policy that breaks its bounds, reads a field outside its context, or touches a protected scenario setting.
+- The Atlas `$jsonSchema` validator checks the envelope of every stored version, including its author, status, and verdict.
+- Database roles keep the supervisor out of `flex_final` and keep the web reader read-only.
+
+MongoDB's Atlas Agent Engine launch describes agents "governed by policy that can't be quietly switched off" ([press release, Sep 29, 2026](https://www.prnewswire.com/news-releases/mongodb-launches-atlas-agent-engine-to-put-ai-agents-in-production-without-a-new-stack-302892753.html)). Flex doesn't use Agent Engine. It builds the same idea from the four pieces above.
 
 ## Data splits
 
@@ -62,13 +77,14 @@ The final prices live outside the repo, at `~/.config/flex/caiso_np15_dam_2026_f
 
 ## What each MongoDB feature does
 
-- A time-series collection, `flex.hours`, holds one document per simulated hour, with `{run, version, scenario}` as its meta field.
+- A time-series collection, `flex.hours`, holds one document per simulated hour, with `{run, version, scenario, attempt}` as its meta field.
 - A `$jsonSchema` validator on `flex.harness_versions` checks the envelope of every version: `_id`, `parent`, `rationale`, `predicted`, `created_at`, the `author` and `status` enums, and the shapes of `verdict` and `identity`. Status is `candidate`, `champion`, `rejected`, or `retired`. Atlas accepts any object as `policy`, so a rejected malformed proposal is still stored. `flex.policy.validate` enforces the policy contract.
 - `flex.store.save_run` can't use a transaction, because time-series writes can't join one. It inserts the new hours and misses under a fresh attempt id, then points the `runs` summary at that attempt, then deletes older attempts. `flex.store.run_record` reads only the attempt the summary points at, so a crash at any step leaves a complete result readable. `db/check.py` injects a failure between each pair of steps to prove it.
+- A change stream in `flex.watch`, opened as `reader`, prints each new or updated harness version and each champion move while `flex.evolve` runs.
 - A multi-document transaction in `flex.store.promote` moves the `champion` pointer, retires the old champion, and marks the new one champion, all together. `db/check.py` injects a failure inside that transaction and shows the old champion stays in place.
 - Separate database users with built-in roles scoped per database:
   - `supervisor` has `readWrite` on `flex` and writes versions, dev and validation runs, and promotions.
-  - `reader` has `read` on `flex` and serves the web page's server side.
+  - `reader` has `read` on `flex` and serves the web page's server side and `flex.watch`.
   - `grader` has `readWrite` on `flex_final` and `read` on `flex`. `flex.store.save_run` sends every final-split run there.
   - An X.509 admin user runs `db/setup.py` and the cleanup in `db/check.py`, and nothing else.
 - A separate database, `flex_final`, holds the final runs. `supervisor` can't read it.
@@ -91,6 +107,7 @@ The Atlas and supervisor steps need `.env` at the repo root with the Atlas conne
 ```sh
 uv run python db/setup.py                     # creates collections, validators, and indexes; safe to rerun
 uv run python db/check.py                     # proves the store against Atlas
+uv run python -m flex.watch                   # streams new versions and champion moves from Atlas
 uv run python -m flex.evolve --gens 6         # 6 is a cap, not a target
 ```
 
@@ -106,25 +123,26 @@ uv run python -m flex.final                   # once, after the freeze
 
 On the 3 final scenarios, every pinned version met every deadline, including the frozen incumbent `v0`. So the final set doesn't test the repair. The repair evidence is validation, where the evaluator accepted `g1-289b1a` with "repairs val-25-high, val-26-high; training energy -1.93%".
 
-| Version | What it is | Final scenarios passed | Late job-hours | Unfinished kWh | Summed training energy | vs v0 |
+| Version | What it is | Final scenarios passed | Late job-hours | Unfinished kWh | Summed training electricity cost | vs v0 |
 | --- | --- | --- | --- | --- | --- | --- |
 | `v0` | frozen incumbent | 3 of 3 | 0 | 0 | $17,924.46 | |
 | `g1-289b1a` | supervisor, the validation repair | 3 of 3 | 0 | 0 | $18,241.62 | +1.77% |
 | `g5-683c0e` | supervisor | 3 of 3 | 0 | 0 | $16,135.24 | -9.98% |
 | `g4-eac5bd` | supervisor | 3 of 3 | 0 | 0 | $16,061.45 | -10.39% |
-| `g5-e942f4` | supervisor, current champion | 3 of 3 | 0 | 0 | $15,741.65 | -12.18% |
+| `g5-e942f4` | supervisor, champion at the freeze | 3 of 3 | 0 | 0 | $15,741.65 | -12.18% |
 | `restart_aware` | hand-tuned reference | 3 of 3 | 0 | 0 | $16,695.84 | -6.85% |
 | `control` | hand-written control repair | 3 of 3 | 0 | 0 | $16,781.72 | -6.38% |
 
-The champion beat both hand-tuned references on training energy.
+The champion at the freeze (`g5-e942f4`) is cheaper than both hand-tuned references only because of a 1% keep-warm rule. Without that rule it costs $17,157.39, -4.28% against `v0`, behind both. See Known limitations.
 
-Two evolve runs wrote 12 versions to Atlas, the seed `v0` and 11 supervisor proposals. The evaluator rejected 7 of them with reasons. One is `g4-4a14cc`, rejected with "regression on val-26-high: late_job_hours 0 -> 1". Four accepted versions were later retired, and `g5-e942f4` is the champion. Raindrop recorded 17 proposal events: 6 from a dry run that wrote nothing to Atlas, and 11 from the two Atlas runs, matching the 11 supervisor versions (counted from the dashboard timestamps at 2:40 p.m.).
+Two evolve runs wrote 12 versions to Atlas, the seed `v0` and 11 supervisor proposals. The evaluator rejected 7 of them with reasons. One is `g4-4a14cc`, rejected with "regression on val-26-high: late_job_hours 0 -> 1". Four accepted versions were later retired, and `g5-e942f4` was the champion at the freeze. A live run after the freeze may promote a newer one; `results/` keeps the frozen comparison. Raindrop recorded 17 proposal events: 6 from a dry run that wrote nothing to Atlas, and 11 from the two Atlas runs, matching the 11 supervisor versions (counted from the dashboard timestamps at 2:40 p.m.).
 
 The control repair is hand-written. It proves the scenario can be repaired. The supervisor never sees it, and it isn't agent-generated.
 
 ## Known limitations
 
-- The promotion gate scores only the 12 validation scenarios. The final champion, `g5-e942f4`, has 2 late job-hours on dev-13-high, where its parent `g4-eac5bd` had none. Rerunning both policies from Atlas on dev-13-high measures that. The evaluator didn't change after anyone saw it. Both versions carry evaluator version `2026-10-11.3`, which is still the current one.
+- The promotion gate scores only the 12 validation scenarios. The champion at the freeze (`g5-e942f4`) has 2 late job-hours on dev-13-high, where its parent `g4-eac5bd` had none. Rerunning both policies from Atlas on dev-13-high measures that. The evaluator didn't change after anyone saw it. Both versions carry evaluator version `2026-10-11.3`, which is still the current one.
+- An exploratory ablation after the freeze, in `results/exploratory-keepwarm-ablation.json`, removed one rule from the champion at the freeze (`g5-e942f4`). That rule holds a running job at 1% power, 7 kW, when restarts are expensive, so the job stays warm instead of pausing. Without it, summed final training electricity cost is $17,157.39, -4.28% against `v0`, behind both hand-tuned references. Restarts rise from 6 to 36, and the 133 hours spent at 7 kW drop to 0. Both versions meet every deadline. The simulator treats any power above zero as keeping a job warm, and real GPUs likely don't. The fix is a protected minimum warm power, which needs a new evolve run and a new final set.
 - `flex.store.save_run` assumes one writer per run id. Two concurrent saves of the same run can delete each other's evidence and leave the summary pointing at an attempt that no longer exists.
 - Final-price isolation is procedure plus file location, not a security boundary. See [Data splits](#data-splits).
 
