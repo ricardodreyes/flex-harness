@@ -1,6 +1,8 @@
 # Demo scripts
 
-Restart costs rose 30x (35 to 1,050 kWh per cold start). The frozen scheduler passed 10 of 12 validation scenarios. Claude's first accepted repair passed 12 of 12, and every later champion kept 12 of 12. On 12 unseen days the champion at the freeze (`g5-e942f4`) cut training electricity cost 12.18% with zero missed deadlines. An ablation after the freeze shows most of that comes from one rule that holds paused jobs at 1% power to stay warm, which our simulator allows and real GPUs likely don't. Without that rule the saving is 4.28%, behind both hand-tuned references.
+Use the [current three-minute judging guide](docs/ROUND_ONE.md) for the timed presentation, exact screen cues, live-run outcomes, and Q&A. The scripts below preserve the earlier recording plan.
+
+Restart costs rose 30x (35 to 1,050 kWh per cold start). The frozen scheduler passed 10 of 12 validation scenarios. Claude's first accepted repair passed 12 of 12, and every later champion kept 12 of 12. On 12 unseen days the champion at the freeze (`g5-e942f4`) cut training electricity cost 12.18% with zero missed deadlines. An ablation after the freeze shows most of that comes from one rule that holds running jobs at 1% power to stay warm, a behavior we have not validated on real hardware. Without that rule the saving is 4.28%, behind both hand-tuned references.
 
 Both scripts show only work built on Oct 11, 2026. Every number comes from `results/final.json` or from the runs and versions in Atlas, the same numbers as the README. The spoken lines round dollar amounts; put the exact figures on screen. Verdict reasons say "training energy"; the number is training electricity cost in dollars.
 

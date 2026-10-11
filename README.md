@@ -1,12 +1,18 @@
 # Flex
 
-Restart costs rose 30x (35 to 1,050 kWh per cold start). The frozen scheduler passed 10 of 12 validation scenarios. Claude's first accepted repair passed 12 of 12, and every later champion kept 12 of 12. On 12 unseen days the champion at the freeze (`g5-e942f4`) cut training electricity cost 12.18% with zero missed deadlines. An ablation after the freeze shows most of that comes from one rule that holds paused jobs at 1% power to stay warm, which our simulator allows and real GPUs likely don't. Without that rule the saving is 4.28%, behind both hand-tuned references.
+[Live replay](https://flex-app-mv4dhmmqouu-prod.cloud.modelence.app) · [Design and architecture](DESIGN.md) · [Three-minute judging demo](docs/ROUND_ONE.md)
+
+Restart costs rose 30x (35 to 1,050 kWh per cold start). The frozen scheduler passed 10 of 12 validation scenarios. Claude's first accepted repair passed 12 of 12, and every later champion kept 12 of 12. On 12 unseen days the champion at the freeze (`g5-e942f4`) cut training electricity cost 12.18% with zero missed deadlines. An ablation after the freeze shows most of that comes from one rule that holds running jobs at 1% power to stay warm, a behavior we have not validated on real hardware. Without that rule the saving is 4.28%, behind both hand-tuned references.
 
 Flex adapts the training-power scheduler of an AI data center when operating conditions change. A supervisor model reads the scheduler's development diagnostics and proposes a changed policy. A fixed evaluator that the supervisor can't edit decides whether to accept the change. MongoDB Atlas stores every version, run, hour, miss, and verdict, and holds the pointer to the current champion.
 
 Flex targets the Recursive Harnessing problem statement: a harness that changes its own rules and context to fit a task.
 
 ## What is real and what is simulated
+
+![Frozen training electricity costs and the separately labeled exploratory keep-warm ablation](docs/images/cost-comparison.svg)
+
+[Validation repair](docs/images/validation-repair.png) · [Policy changes](docs/images/policy-repair.png) · [Rejected cheaper proposal](docs/images/rejected-proposal.png)
 
 The electricity prices are real. They're CAISO NP15 day-ahead prices for 2026.
 
@@ -142,7 +148,7 @@ The control repair is hand-written. It proves the scenario can be repaired. The 
 ## Known limitations
 
 - The promotion gate scores only the 12 validation scenarios. The champion at the freeze (`g5-e942f4`) has 2 late job-hours on dev-13-high, where its parent `g4-eac5bd` had none. Rerunning both policies from Atlas on dev-13-high measures that. The evaluator didn't change after anyone saw it. Both versions carry evaluator version `2026-10-11.3`, which is still the current one.
-- An exploratory ablation after the freeze, in `results/exploratory-keepwarm-ablation.json`, removed one rule from the champion at the freeze (`g5-e942f4`). That rule holds a running job at 1% power, 7 kW, when restarts are expensive, so the job stays warm instead of pausing. Without it, summed final training electricity cost is $17,157.39, -4.28% against `v0`, behind both hand-tuned references. Restarts rise from 6 to 36, and the 133 hours spent at 7 kW drop to 0. Both versions meet every deadline. The simulator treats any power above zero as keeping a job warm, and real GPUs likely don't. The fix is a protected minimum warm power, which needs a new evolve run and a new final set.
+- An exploratory ablation after the freeze, in `results/exploratory-keepwarm-ablation.json`, removed one rule from the champion at the freeze (`g5-e942f4`). That rule holds a running job at 1% power, 7 kW, when restarts are expensive, so the job stays warm instead of pausing. Without it, summed final training electricity cost is $17,157.39, -4.28% against `v0`, behind both hand-tuned references. Restarts rise from 6 to 36, and the 133 hours spent at 7 kW drop to 0. Both versions meet every deadline. The simulator treats any power above zero as keeping a job warm. We have not validated that behavior on real hardware. The fix is a protected minimum warm power, which needs a new evolve run and a new final set.
 - `flex.store.save_run` assumes one writer per run id. Two concurrent saves of the same run can delete each other's evidence and leave the summary pointing at an attempt that no longer exists.
 - Final-price isolation is procedure plus file location, not a security boundary. See [Data splits](#data-splits).
 
