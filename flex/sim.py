@@ -135,7 +135,7 @@ def simulate(world: World, policy: Policy, run_id: str, version_id: str) -> SimR
         for i in active:
             if i not in powered:
                 warm[i] = False
-            if remaining[i] > 0 and t >= jobs[i]["deadline_h"]:
+            if remaining[i] > 0 and t >= jobs[i]["deadline_h"] - 1:
                 late[i] += 1
                 miss("late", t, ts, full, f"{remaining[i]:,.0f} kWh remaining past deadline h{jobs[i]['deadline_h']}",
                      jobs[i]["id"])
