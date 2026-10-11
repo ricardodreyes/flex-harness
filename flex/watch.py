@@ -1,7 +1,8 @@
 """Stream harness changes from Atlas as they happen: uv run python -m flex.watch
 
-Opens a change stream as the read-only reader user and prints one line per new or updated harness version and
-per champion move, so a live evolve run is visible while it works.
+Opens a change stream as the read-only reader user and prints one line per harness-version write and per champion
+move. It shows database events (a stored proposal, its verdict, a committed promotion), not model reasoning. Start
+it before a generation; it prints nothing for history and must be restarted if the connection drops.
 """
 
 import argparse
@@ -10,18 +11,17 @@ from flex import store
 
 
 def line(event: dict) -> str | None:
-    doc = event.get("fullDocument") or {}
-    coll = event["ns"]["coll"]
-    if coll == "champion":
-        return f"champion -> {doc.get('version')}"
+    doc = event.get("fullDocument")
     if not doc:
         return None
+    coll = event["ns"]["coll"]
+    if coll == "champion":
+        return f"PROMOTED  champion pointer -> {doc.get('version')} (committed in Atlas)"
     if coll != "harness_versions":
         return f"{coll}: {doc.get('_id')}"
-    verdict = doc.get("verdict") or {}
-    label = doc.get("acceptance") or doc["status"]
-    reasons = "; ".join(verdict.get("reasons", [])) or doc.get("rationale", "")[:100]
-    return f"{doc['_id']:12s} {doc.get('author', ''):10s} {label:8s} {reasons}"
+    reasons = "; ".join((doc.get("verdict") or {}).get("reasons", []))
+    decision = f"accepted as {doc['acceptance']}" if doc.get("acceptance") else ("rejected" if doc.get("status") == "rejected" else "no verdict")
+    return f"{doc['_id']:12s} status={doc.get('status', '?'):9s} {decision:20s} {reasons}"
 
 
 def watch(collections: tuple[str, ...], limit: int | None = None) -> None:
