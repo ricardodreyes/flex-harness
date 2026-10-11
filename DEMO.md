@@ -20,11 +20,11 @@ Say: "The supervisor gets dev evidence only: totals, diagnosis lines, recent mis
 
 **1:35 to 2:10. Atlas holds the record.**
 Show: Data Explorer on `harness_versions`, then `champion`, then `hours` for one run.
-Say: "Every version, verdict, run, hour, and miss lives in Atlas. A JSON schema validator rejects malformed versions. Promotion is one transaction that moves the champion pointer and flips both statuses. Our check injects a failure inside that transaction and the old champion stays. Each role connects as its own database user. The supervisor can't read the final database, and the page's reader can't write."
+Say: "Every version, verdict, run, hour, and miss lives in Atlas. A JSON schema validator checks every version's envelope, and the policy validator checks the rules, so even a malformed rejected proposal stays on record. Promotion is one transaction that moves the champion pointer and retires the old champion. Our check injects a failure inside that transaction and the old champion stays. Each role connects as its own database user. The supervisor can't read the final database, and the page's reader can't write."
 
 **2:10 to 2:45. The frozen final comparison.**
 Show: the final table.
-Say: "The final prices are Sep 29 to Oct 10, and nobody looked at them before we reserved them. They live outside the repo. That's procedure and file location, not a security boundary. One run, never fed back. Incumbent: [RESULT]. Supervisor champion: [RESULT]. Hand-written control repair: [RESULT]."
+Say: "The final prices are Sep 29 to Oct 10, and nobody looked at them before we reserved them. They live outside the repo. They're public CAISO data and an older copy is in our git history, so that's procedure and file location, not secrecy. One run, never fed back. Incumbent: [RESULT]. Supervisor champion: [RESULT]. Hand-written control repair: [RESULT]."
 
 **2:45 to 3:00. Close.**
 Say: "The harness adapted its own policy to a changed condition, and a judge it can't touch kept the change. Built today, on Atlas."
@@ -32,7 +32,7 @@ Say: "The harness adapted its own policy to a changed condition, and a judge it 
 ## Likely questions
 
 - Is any of this real? The CAISO NP15 day-ahead prices are real. Everything else is a simulated assumption.
-- Did the model ever see the final data? No. Final prices live outside the repo, the interpreter can't read files, and no prompt includes final data. That's procedure, not access control.
+- Did the model ever see the final data? No. Final prices live outside the repo, the interpreter can't read files, and no prompt includes final data. They're public CAISO data and an older copy is in the public git history, so this is procedure and file location, not secrecy.
 - Does this help with Texas SB 6? SB 6 is motivation only. Its §39.170(b) reliability service excludes loads that curtail on wholesale prices, which this scheduler does, and the replay uses California prices.
 - Does the champion beat the incumbent on cost? It doesn't have to. Deadlines come before cost. Cost change: [RESULT].
 

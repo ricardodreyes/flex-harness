@@ -31,7 +31,7 @@ Each generation of `flex.evolve` does the following:
 4. Runs the champion and the candidate on the validation scenarios.
 5. Applies `flex.evaluate.accept`.
 6. Saves the version, its runs, and its misses to Atlas.
-7. Promotes the candidate if the evaluator accepted it.
+7. Promotes the candidate if the evaluator accepted it. The old champion's status becomes `retired`.
 
 The tuned incumbent stays as the baseline. A repair doesn't need to beat it on cost.
 
@@ -42,10 +42,11 @@ Priorities, in order, are physical limits, then deadlines and completed work, th
 `flex.evaluate.accept` applies these steps in order:
 
 1. An invalid candidate is rejected with the validator's reasons.
-2. A candidate that fails any validation scenario the champion passes is rejected for regression.
-3. A candidate that passes a scenario the champion failed is accepted as a repair. Its cost change is reported even when the cost goes up.
-4. Fewer late hours without a pass is logged as partial progress and rejected.
-5. Otherwise the pass set is identical, and the candidate is accepted only if training energy cost drops by more than 1%.
+2. A candidate that wasn't run on exactly the champion's scenarios is rejected as an incomplete evaluation.
+3. A candidate that makes any feasible scenario worse is rejected for regression. Worse means more late job-hours, more unfinished work, more cap interventions, or fewer completed jobs. Abandoning work can't win.
+4. A candidate that passes a scenario the champion failed is accepted as a repair. Its cost change is reported even when the cost goes up.
+5. Fewer late hours without a pass is rejected as partial progress.
+6. Otherwise reliability is identical, and the candidate is accepted only if training energy cost drops by more than 1% of the champion's cost.
 
 A scenario passes with zero late job-hours, zero unfinished work, and zero cap interventions. Scenarios that are capacity-impossible or that have infeasible hours are reported and left out of pass and fail.
 
@@ -54,16 +55,17 @@ A scenario passes with zero late job-hours, zero unfinished work, and zero cap i
 | Split | Prices | Seeds | Used for |
 | --- | --- | --- | --- |
 | dev | Apr 1 to Jun 30, 2026 | 11, 12, 13 | Baseline tuning and the supervisor's evidence. Diagnosis lines and totals go into the prompt. |
-| validation | Jul 1 to Sep 28, 2026, including the Aug 30 window that was inspected and published earlier | 21, 22, 23 | The promotion gate. Repeated scoring here is selection feedback. Only the verdict reasons go back to the supervisor. |
+| validation | Jul 1 to Sep 28, 2026. Seeds 24, 25, and 26 overlap the Aug 30 window that was inspected and published earlier. | 21 to 26, each at low and high restart cost, so 12 scenarios declared before any run on them | The promotion gate. Repeated scoring here is selection feedback. Only the verdict reasons go back to the supervisor. |
 | final | Sep 29 to Oct 10, 2026. Nobody had inspected these prices before they were reserved at 12:55 p.m. on Oct 11. | 31, 32, 33 | One frozen comparison through `flex.final`. Never fed back into any repair. |
 
-The final prices live outside the repo, in `~/.config/flex`. That isolation is procedural plus file location. It isn't a security boundary. The policy interpreter can't read files, and the supervisor's prompt never contains final data.
+The final prices live outside the repo, at `~/.config/flex/caiso_np15_dam_2026_final.json`. Set `FLEX_FINAL_PRICES` to read them from another path. Only `flex.evaluate` opens the file, in `run` to simulate and in `identity` to hash it, and only for final-split scenarios. `tests/test_evaluate.py` checks that dev and validation evaluation never opens it. They're public CAISO data, and an older copy is in the public git history. They're held out by procedure and file location, not secrecy, and that isn't a security boundary. The policy interpreter can't read files, and the supervisor's prompt never contains final data.
 
 ## What each MongoDB feature does
 
 - A time-series collection, `flex.hours`, holds one document per simulated hour, with `{run, version, scenario}` as its meta field.
-- A `$jsonSchema` validator on `flex.harness_versions` rejects any version whose policy, verdict, identity, author, or status doesn't match the contract.
-- A multi-document transaction in `flex.store.promote` moves the `champion` pointer and flips the version statuses together. `db/check.py` injects a failure inside that transaction and shows the old champion stays in place.
+- A `$jsonSchema` validator on `flex.harness_versions` checks the envelope of every version: `_id`, `parent`, `rationale`, `predicted`, `created_at`, the `author` and `status` enums, and the shapes of `verdict` and `identity`. Status is `candidate`, `champion`, `rejected`, or `retired`. Atlas accepts any object as `policy`, so a rejected malformed proposal is still stored. `flex.policy.validate` enforces the policy contract.
+- `flex.store.save_run` can't use a transaction, because time-series writes can't join one. It inserts the new hours and misses under a fresh attempt id, then points the `runs` summary at that attempt, then deletes older attempts. `flex.store.run_record` reads only the attempt the summary points at, so a crash at any step leaves a complete result readable. `db/check.py` injects a failure between each pair of steps to prove it.
+- A multi-document transaction in `flex.store.promote` moves the `champion` pointer, retires the old champion, and marks the new one champion, all together. `db/check.py` injects a failure inside that transaction and shows the old champion stays in place.
 - Separate database users with built-in roles scoped per database:
   - `supervisor` has `readWrite` on `flex` and writes versions, dev and validation runs, and promotions.
   - `reader` has `read` on `flex` and serves the web page's server side.
