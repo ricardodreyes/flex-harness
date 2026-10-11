@@ -75,14 +75,28 @@ The final prices live outside the repo, at `~/.config/flex/caiso_np15_dam_2026_f
 
 ## Run it
 
-Install [uv](https://docs.astral.sh/uv/), then put the Atlas connection strings, the X.509 certificate path, and the Anthropic key in `.env` at the repo root. `.env` is gitignored, and the pre-commit hook in `scripts/hooks` blocks env files, keys, certificates, and Mongo URIs with passwords.
+Install [uv](https://docs.astral.sh/uv/). These steps need no credentials:
 
 ```sh
-uv run pytest -q                              # physics, policy validation, acceptance rule
-uv run python -m flex.preflight               # checks the scenario has a real, repairable problem
+uv sync
+uv run pytest -q                                                      # physics, policy validation, acceptance rule
+uv run python -m flex.preflight                                       # checks the scenario has a real, repairable problem
+uv run python -m flex.sim --policy incumbent --scenario dev-12-high   # one run; prints totals and diagnosis lines
+```
+
+`flex.sim` takes a module name from `policies/` and a scenario id from `flex/scenarios.py`. It refuses final scenarios.
+
+The Atlas and supervisor steps need `.env` at the repo root with the Atlas connection strings, the X.509 certificate path, and the Anthropic key. `.env` is gitignored, and the pre-commit hook in `scripts/hooks` blocks env files, keys, certificates, and Mongo URIs with passwords.
+
+```sh
 uv run python db/setup.py                     # creates collections, validators, and indexes; safe to rerun
 uv run python db/check.py                     # proves the store against Atlas
 uv run python -m flex.evolve --gens 6         # 6 is a cap, not a target
+```
+
+`flex.final` also needs the final prices at `~/.config/flex/caiso_np15_dam_2026_final.json`, or at the path in `FLEX_FINAL_PRICES`. The repo doesn't include that file, and `data/fetch_caiso.py` doesn't write it.
+
+```sh
 uv run python -m flex.final                   # once, after the freeze
 ```
 
