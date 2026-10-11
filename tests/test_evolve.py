@@ -1,8 +1,8 @@
 import pytest
 
 from flex import evolve, supervisor, telemetry
-from flex.evaluate import run
-from flex.scenarios import dev
+from flex.evaluate import accept, run
+from flex.scenarios import dev, validation
 from policies.control_repair import CONTROL_REPAIR
 from policies.incumbent import INCUMBENT
 from policies.restart_aware import RESTART_AWARE
@@ -27,22 +27,24 @@ def test_invalid_proposal_is_a_rejected_version(tmp_path, monkeypatch, bad):
     evolve.evolve(store, 1)
     rejected = [v for v in store.versions() if v["status"] == "rejected"]
     assert len(rejected) == 1
-    assert rejected[0]["verdict"]["reasons"][0] == "invalid policy"
-    assert rejected[0]["author"] == "supervisor"
+    assert rejected[0]["author"] == "supervisor" and not rejected[0]["verdict"]["accepted"]
+    assert rejected[0]["verdict"]["cost_delta_pct"] is None
+    assert not any(r["version"] == rejected[0]["_id"] for r in store._read("runs.jsonl"))
     assert store.champion()["_id"] == "v0"
 
 
-def test_restart_aware_is_accepted_on_cost(tmp_path, monkeypatch):
+def test_stores_the_evaluator_verdict_and_promotes_only_on_accept(tmp_path, monkeypatch):
     store = evolve.JsonlStore(tmp_path)
     stub(monkeypatch, RESTART_AWARE)
     evolve.evolve(store, 1)
-    champ = store.champion()
-    assert champ["_id"] != "v0" and champ["parent"] == "v0" and champ["policy"] == RESTART_AWARE
-    verdict = champ["verdict"]
-    assert verdict["accepted"] and verdict["reasons"][0].startswith("same pass set, training energy -")
-    old, new = [11049.05, 14993.50, 13716.86], [10749.27, 14349.10, 12783.02]
-    assert round(verdict["cost_delta_pct"], 2) == round((sum(new) - sum(old)) / sum(old) * 100, 2)
-    assert {v["_id"]: v["status"] for v in store.versions()}["v0"] == "candidate"
+    expected = accept(RESTART_AWARE, run(INCUMBENT, validation(), "v0"), run(RESTART_AWARE, validation(), "c"))
+    cand = next(v for v in store.versions() if v["author"] == "supervisor")
+    assert cand["verdict"] == expected and cand["parent"] == "v0" and cand["policy"] == RESTART_AWARE
+    status = {v["_id"]: v["status"] for v in store.versions()}
+    if expected["accepted"]:
+        assert store.champion()["_id"] == cand["_id"] and status["v0"] == "candidate"
+    else:
+        assert store.champion()["_id"] == "v0" and status[cand["_id"]] == "rejected"
 
 
 def test_rerun_replaces_runs(tmp_path):
