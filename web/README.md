@@ -1,5 +1,7 @@
 # Flex recorded evaluation replay
 
+[Live demo](https://flex-app-mv4dhmmqouu-prod.cloud.modelence.app)
+
 The page follows a scheduler repair through its diagnosis, policy change, validation verdict, and hourly behavior. Every panel labels its evidence source. The seven pinned final scores come from `results/final.json`; references are labeled separately. Every pinned version met every final deadline, so the repair evidence is the validation verdict, not the final scores.
 
 The lineage groups all proposals by evolution run while retaining their actual parent relationships. The featured repair is `g1-289b1a`; the featured rejection is `g4-4a14cc`. The behavior panel stays on `v0` versus `g1-289b1a` on `val-26-high`. A job's `done_h` is its last hour with work: completion occurs at the end of that hour.

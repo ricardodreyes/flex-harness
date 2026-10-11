@@ -47,4 +47,10 @@ Screenshots and reports are ignored local evidence under `web/evidence/`: `recor
 
 `modelence.config.json` uses `node-22-slim`, resource root `web`, `npm ci` then `npm run build`, and static `/` from `dist`. Deployment staging contains only this root config and an allowlisted nested frontend directory. Its only public data file is the credential-scanned replay. Environment files, Python code, tests, evidence, caches, and database clients are excluded.
 
-Ricardo authorized the Modelence deploy and will complete account selection/confirmation in the browser. Deployment outcome and live URL will be appended after the CLI reports success. No push is authorized or performed.
+Ricardo confirmed the Modelence browser request. The CLI reported `Deployed successfully.` after the `node-22-slim` cloud build and container startup. The actual uploaded archive contained exactly the nine reviewed files.
+
+Live URL: https://flex-app-mv4dhmmqouu-prod.cloud.modelence.app
+
+Release code commit: `bf8f362`, following canary reproduction commit `04cbc04`. The complete browser suite also passed against the live URL: the served replay exactly equals the exported artifact, all seven rows and both lineages render, and normal interaction has no browser errors or warnings. Screenshots now show the live deployment.
+
+No push was performed. The demo intentionally has no live data mode. Final evaluation was read from the frozen results, not rerun during deployment. No required release work remains.
