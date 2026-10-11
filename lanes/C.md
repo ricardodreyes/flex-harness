@@ -1,30 +1,36 @@
-# Lane C: Atlas data layer, README, demo script
+# Lane C: Atlas integration, access, factual docs
 
-Paste this whole file into Claude Code opened in the `app-c` worktree. First read `lanes/README.md` and `flex/contract.py`. The MongoDB MCP server is connected. Project `ATLAS_PROJECT_ID`, cluster `Cluster0`, MongoDB 8.0. Admin auth is X.509, cert at `~/.config/atlas/X509_CERT_FILE`. URI and path are in `.env`.
+Paste this into Claude Code opened in `app-c`. Run `git merge main` first, then read `lanes/README.md` and `flex/contract.py`. The MongoDB MCP server is connected. Use the only project it lists, cluster `Cluster0`, MongoDB 8.0. Admin auth is X.509, configured in `.env`. Never print secrets.
 
-1. `db/setup.py` must be idempotent, and running it twice must be clean. It creates:
-   - in DB `flex`: time-series collections `prices` and `hours`, plus `runs`, `harness_versions` (with a `$jsonSchema` matching `HarnessVersion`), `misses`, and `champion`
-   - in DB `flex_holdout`: the test prices
-   - indexes for the page's queries
-   - a Vector Search index on `misses.post_mortem` using automated embedding (Voyage). If the sandbox refuses auto-embed, record the error in the README and skip it.
+1. `db/setup.py`, idempotent, so running it twice is clean. It creates:
+   - Database `flex`:
+     - `hours`, time-series with meta `{run, version, scenario}`, holding every `HourRecord` field
+     - `runs`
+     - `harness_versions`, with a `$jsonSchema` that mirrors `HarnessVersion`, including `policy`, `verdict`, `identity`, and `author`
+     - `misses`
+     - `champion`
+   - Database `flex_final`: the final runs only.
+   - Indexes for the page's queries.
+   - Embeddings are optional. Skip them unless everything else is verified.
+2. Users, created through the MCP with built-in roles scoped per database. Each URI goes only into `.env` as `MONGODB_<ROLE>_URI`.
+   - `supervisor`: readWrite on `flex`
+   - `reader`: read on `flex`, used by the web page server side
+   - `grader`: readWrite on `flex_final` and read on `flex`
+   - The X.509 admin is for setup only.
+3. `flex/store.py`, with the signatures in `lanes/README.md`. `promote` flips the version's status and the `champion` pointer in one transaction.
+4. `db/check.py` proves these against the real sandbox:
+   - a version and a run round-trip
+   - `promote` is atomic, because an injected failure inside the transaction leaves the old champion in place
+   - `reader` can't write
+   - `supervisor` can't read `flex_final`
 
-   It loads prices from `data/` into the right split.
-2. Database users through the MCP (`atlas-create-db-user`) with database-scoped built-in roles:
-   - `operator`: `read` on `flex`
-   - `supervisor`: `readWrite` on `flex`
-   - `grader`: `read` on `flex_holdout`
-   - `web`: `read` on `flex`
+   Paste its output in your report. Don't claim any of this works without that output.
+5. `README.md`, `DEMO.md`, and `SUBMISSION.md`. State only facts.
+   - Recursive Harnessing.
+   - Built Oct 11, 2026.
+   - CAISO NP15 day-ahead prices are real, while jobs, inference load, events, and the restart cost are simulated assumptions.
+   - The split table from `lanes/README.md`, including that final prices are reserved by procedure, not access control.
+   - Texas SB 6 is motivation only, citing https://capitol.texas.gov/tlodocs/89R/billtext/html/SB00006F.htm. §39.170(a) covers a curtailment protocol during firm load shed. §39.170(b) is a separate ≥75 MW reliability service that excludes loads curtailing on wholesale prices, which this price-responsive scheduler is. The replay is California prices and doesn't show Texas compliance.
+   - Results come only from `results/final.json`. Leave placeholders until then.
 
-   Passwords go only into `.env` as `MONGODB_<ROLE>_URI`. Never print them.
-3. `flex/store.py`: the functions in `lanes/README.md`. `promote` uses a transaction. `similar_misses` uses `$vectorSearch`, falling back to recent misses of the same kind.
-4. `README.md`:
-   - what Flex is, who it's for (Texas SB 6, Duke 76 GW, LBNL 6.7-12% by 2028, cited)
-   - how the harness evolves
-   - which MongoDB feature does which job
-   - how to run it
-   - a "Built at the hackathon on Oct 11, 2026" section
-   - results copied from `flex.final` output only, so leave a placeholder until then
-
-   Also `DEMO.md` (the 3-minute live script and the 1-minute video script) and `SUBMISSION.md` (the Cerebral Valley description).
-
-Check by 1:30: `uv run python db/setup.py` runs twice cleanly, a fake run written through `store` shows up in Compass, and `operator` gets "unauthorized" on `flex_holdout`.
+Check: the `db/check.py` output, plus `uv run python db/setup.py` run twice.

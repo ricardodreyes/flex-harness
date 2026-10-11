@@ -1,30 +1,39 @@
-# Lane B: supervisor and evolution loop
+# Lane B: supervisor, evolution, frozen final comparison
 
-Paste this whole file into Claude Code opened in the `app-b` worktree. First read `lanes/README.md` and `flex/contract.py`.
+Paste this into Claude Code opened in `app-b`. Run `git merge main` first, then read `lanes/README.md`, `flex/contract.py`, `flex/evaluate.py`, and `flex/scenarios.py`. Read the `claude-api` skill before writing any model call.
 
-Build the loop that makes the harness rewrite itself.
+Goal: the harness adapts itself through a model-generated policy change that the fixed evaluator accepts. A real rejected candidate stays in the record next to it.
 
-1. `flex/evolve.py`: `--gens N`. Each generation:
-   1. Simulate the champion on `train`.
-   2. Write a Haiku post-mortem for each distinct miss.
-   3. Ask the supervisor for one edit.
-   4. Compile it in the sandbox. A compile failure is a rejected candidate with the error kept.
-   5. Score the candidate on `train` and `gate`.
-   6. Accept only if `gate.net` improves on the champion's with no more `late_h` or `missed_events`. Otherwise reject.
-   7. Save the version, its runs, and its misses, and promote if accepted.
+1. `flex/supervisor.py`. One call to `claude-opus-5-5` per proposal.
+   - Use structured output via `client.messages.parse`, with a schema that mirrors `Policy`.
+   - Use adaptive thinking with effort `high`, and the server-side refusal fallback the skill describes.
+   - The prompt gets only development evidence:
+     - the champion's policy
+     - its dev `Totals` and its `diagnosis` lines per dev scenario
+     - recent dev misses
+     - the meaning of each field in `OBS_FIELDS`
+     - the bounds from `Policy`'s docstring
+     - the last five rejected proposals with their `Verdict.reasons`
+   - Never give it validation hours, final anything, protected settings as editable, or the control repair.
+   - Ask for a rationale and a falsifiable prediction, such as "late hours on dev-12-high go from 5 to 0".
+2. `flex/evolve.py`, run with `--gens N`, where N is a cap and stopping early is fine.
+   - The champion starts as `INCUMBENT`. The condition being adapted to is the high restart cost: dev-*-high and validation.
+   - Each generation:
+     1. Run the champion on dev.
+     2. Propose.
+     3. Validate with `flex.policy.validate`. An invalid proposal is a rejected version with reasons.
+     4. Run the champion and the candidate on validation.
+     5. Apply `flex.evaluate.accept`.
+     6. Save the version (author "supervisor", with verdict and identity), runs, and misses through `flex.store`.
+     7. Promote when accepted.
+   - Never load final scenarios.
+3. `flex/telemetry.py` is optional Raindrop instrumentation (`raindrop-ai`, key `RAINDROP_WRITE_KEY`) with one interaction per proposal and its verdict. It's a no-op without the key. Don't claim it makes the entry prize-eligible.
+4. `flex/final.py` runs once after the coordinator declares the freeze.
+   1. Write `results/final_manifest.json` before any run. It holds the `EvalIdentity` of the incumbent, champion, restart_aware reference, and control, plus `manifest_sha256()`.
+   2. Run each one on `flex.scenarios.final()`.
+   3. Write `results/final.json` and print the table.
+   - The result must never feed another repair. Label any later rerun `exploratory` in its filename.
 
-   Never load `test` here.
-2. `flex/supervisor.py`: one `claude-opus-5-5` call per generation via `client.messages.parse` with a pydantic or JSON-schema output of `{code, context_fields, guardrails, tools, rationale, predicted}`, using adaptive thinking. Add the server-side fallback beta (`betas=["server-side-fallback-2026-07-01"]`, `fallbacks="default"`). Read the `claude-api` skill before writing this. Its input is:
-   - the champion's code and fields
-   - the train totals and the top misses with post-mortems
-   - `similar_misses` results
-   - the full list of `OBS_FIELDS` and tools it may grant
-   - the last 5 rejected edits with their reasons
-
-   Post-mortems use `claude-haiku-5-5`, one sentence each.
-3. `flex/telemetry.py`: Raindrop Python SDK (`raindrop-ai`, key `RAINDROP_WRITE_KEY`). Log one interaction per generation: input is the supervisor prompt summary, output is the edit, properties are the train and gate deltas, accepted, and the version id. Add a signal on rejected edits. It's a no-op if the key is missing.
-4. `flex/final.py`: run v0 and the champion once on `test`, using the grader role for prices. Save the runs and print a table of energy cost, late hours, missed events, and net.
-
-Run every candidate's `simulate` in a child process (`multiprocessing`, spawn context) with a 20 s timeout and an empty environment (`os.environ.clear()` in the child before compiling). A timeout counts as a rejected candidate. The sandbox's restricted builtins don't stop attribute-walking escapes or infinite loops, and the child must never see API keys.
-
-Lane A is already on `main` (`git merge main` gets the real `simulate`, `build_world`, and `local_prices`). Until Lane C merges at 1:30, stub `simulate`, `store`, and `build_world` in your own test file, never in their files. Check by 2:15: `uv run python -m flex.evolve --gens 5` against Atlas accepts at least one edit, and the supervisor's rationale reads like an operator's note.
+Integration check (the coordinator verifies it, not you):
+- `uv run python -m flex.evolve --gens 6` against Atlas produces at least one accepted supervisor-authored version and at least one rejected one, both with reasons in Atlas.
+- If no proposal is accepted, say so plainly. Don't edit proposals by hand or inject the control repair.
