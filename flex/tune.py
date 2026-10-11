@@ -6,8 +6,9 @@ from flex.contract import Policy, Scenario
 from flex.evaluate import passes, run
 from flex.scenarios import dev
 
-U = (1.0, 1.2, 1.5)
-C = (0, 2, 4)
+# Widened at 1:10 p.m.: the first grid (U up to 1.5, C up to 4) had no point passing every dev-*-low.
+U = (1.0, 1.2, 1.5, 2.0, 2.5, 3.0)
+C = (0, 2, 4, 6)
 Q = (0.1, 0.2, 0.3, 0.4, 0.5)
 H = (0.5, 0.6, 0.7, 0.8, 0.9)
 

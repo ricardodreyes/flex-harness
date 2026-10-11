@@ -10,7 +10,7 @@ CONTROL_REPAIR: Policy = {
         {"when": [{"field": "event_now", "op": "==", "value": True}], "power": 0.0},
         {"when": [{"field": "running", "op": "==", "value": True}, {"field": "price_pct", "op": "<=", "value": 0.7}],
          "power": 1.0},
-        {"when": [{"field": "slack_h", "op": "<=", "value": {"field": "need_h", "times": 1.0, "plus": 2}}],
+        {"when": [{"field": "slack_h", "op": "<=", "value": {"field": "need_h", "times": 2.0, "plus": 2}}],
          "power": 1.0},
         {"when": [{"field": "price_pct", "op": "<=", "value": 0.5}], "power": 1.0},
     ],
