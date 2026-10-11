@@ -12,6 +12,8 @@ from flex.policy import validate
 from flex.scenarios import dev, validation
 from policies.incumbent import INCUMBENT
 
+MAX_STORED_INT = 10**15
+
 
 class JsonlStore:
     """flex.store's interface over local files, for --dry-run and tests."""
@@ -76,6 +78,20 @@ def _score(store, version_id: str, policy: dict, scenarios: list[dict]) -> dict[
     return results
 
 
+def _storable(value):
+    """The stored form of a proposed policy. BSON ints are 8 bytes and a version's policy must be a document, so a
+    malformed proposal is wrapped or stringified and still recorded instead of aborting evolve."""
+    def fix(x):
+        if isinstance(x, dict):
+            return {k: fix(v) for k, v in x.items()}
+        if isinstance(x, list):
+            return [fix(v) for v in x]
+        if isinstance(x, int) and not isinstance(x, bool) and abs(x) > MAX_STORED_INT:
+            return str(x)
+        return x
+    return fix(value) if isinstance(value, dict) else {"raw": repr(value)[:2000]}
+
+
 def _late_misses(results: dict[str, SimResult], k: int = 20) -> list:
     # store.recent_misses(kind="late") is all dev-imp-11, whose misses no policy can fix
     return [m for r in results.values() if evaluate.feasible(r) for m in r["misses"] if m["kind"] == "late"][:k]
@@ -110,7 +126,8 @@ def evolve(store, gens: int):
         else:
             verdict = evaluate.accept(p["policy"], champ_val, _score(store, vid, p["policy"], validation()))
         acceptance = ("repair" if verdict["fixed"] else "cost") if verdict["accepted"] else None
-        store.save_version({"_id": vid, "parent": champ["_id"], "policy": p["policy"], "rationale": p["rationale"],
+        store.save_version({"_id": vid, "parent": champ["_id"], "policy": _storable(p["policy"]),
+                            "rationale": p["rationale"],
                             "predicted": p["predicted"], "author": "supervisor", "verdict": verdict,
                             "identity": evaluate.identity(p["policy"], validation()),
                             "status": "candidate" if verdict["accepted"] else "rejected",

@@ -1,5 +1,6 @@
 import json
 
+import bson
 import pytest
 
 from flex import evaluate, evolve, final, supervisor, telemetry
@@ -118,3 +119,31 @@ def test_final_refuses_when_the_manifest_exists(tmp_path, monkeypatch, capsys):
     assert e.value.code and manifest.read_bytes() == b'{"frozen": true}'
     assert [p.name for p in tmp_path.iterdir()] == ["final_manifest.json"]
     assert "final_manifest.json" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("policy, stored", [
+    ([1, 2], {"raw": "[1, 2]"}),
+    ({"context_fields": [], "rules": [], "default_power": 10**20},
+     {"context_fields": [], "rules": [], "default_power": "100000000000000000000"}),
+])
+def test_malformed_policy_is_stored_as_a_rejection(tmp_path, monkeypatch, policy, stored):
+    store = evolve.JsonlStore(tmp_path)
+    stub(monkeypatch, policy)
+    evolve.evolve(store, 1)
+    cand = next(v for v in store.versions() if v["author"] == "supervisor")
+    assert cand["policy"] == stored and cand["status"] == "rejected" and not cand["verdict"]["accepted"]
+    bson.encode({"policy": cand["policy"]})
+
+
+def test_pin_takes_every_champion_and_the_references():
+    def v(id, status, acceptance=None):
+        return {"_id": id, "status": status, "author": "supervisor", "policy": INCUMBENT, "created_at": id,
+                **({"acceptance": acceptance} if acceptance else {})}
+    versions = [v("b", "retired", "repair"), v("a", "retired"), v("c", "rejected"), v("d", "candidate"),
+                v("e", "champion", "cost")]
+    pinned = final.pin(versions, validation())
+    assert [(p["version"], p["role"], p["acceptance"]) for p in pinned] == [
+        ("a", "champion", None), ("b", "champion", "repair"), ("e", "champion", "cost"),
+        ("restart_aware", "reference", None), ("control", "reference", None)]
+    assert pinned[-1]["policy"] == CONTROL_REPAIR and pinned[-1]["author"] == "control"
+    assert pinned[0]["identity"] == evaluate.identity(INCUMBENT, validation())
