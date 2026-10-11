@@ -24,7 +24,8 @@ SCENARIOS: list[Scenario] = [
         _sc(f"dev-{seed}-high", "dev", start, seed, HIGH, "expensive restarts, same workload and prices"),
     )],
     _sc("dev-imp-11", "dev", "2026-04-01", 11, {**HIGH, "work_scale": 2.5},
-        "dev-11-high with 2.5x work; capacity-impossible, several jobs cannot fit their window at the ceiling"),
+        "dev-11-high with 2.5x work; capacity-impossible: one job cannot fit its window at the ceiling and the aggregate "
+        "work overloads the cluster, 199,495 kWh unfinished even at full power"),
     _sc("dev-cap-11", "dev", "2026-04-01", 11, {**LOW, "event_cap_kw": 100.0},
         "dev-11-low with a 100 kW event cap; inference alone exceeds it, infeasible for the training controller"),
     _sc("val-21", "validation", "2026-07-01", 21, HIGH, "promotion validation"),
