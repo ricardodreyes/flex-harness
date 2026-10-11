@@ -1,4 +1,4 @@
-"""Shapes every lane imports. Re-frozen at 1:05 p.m. after the coordinator correction; supersedes the 12:45 freeze.
+"""Shapes every lane imports. Re-frozen at 12:55 p.m. after the coordinator correction; supersedes the 12:45 freeze.
 
 Units. One step is one hour, so kW drawn for a step equals kWh. Work is measured in productive training kWh:
 a job needing 4,200 kWh finishes after 4,200 kWh of productive power, which is 6 hours at the 700 kW ceiling.
