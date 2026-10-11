@@ -11,7 +11,6 @@ from pymongo.errors import CollectionInvalid
 from flex.contract import DB, FINAL_DB
 from flex.store import client
 
-NUM = {"bsonType": "number"}
 STRINGS = {"bsonType": "array", "items": {"bsonType": "string"}}
 
 
@@ -19,24 +18,19 @@ def obj(required: list[str], **props) -> dict:
     return {"bsonType": "object", "required": required, "properties": props}
 
 
-CONDITION = obj(["field", "op", "value"], field={"bsonType": "string"}, op={"enum": ["<", "<=", ">", ">=", "=="]},
-                value={"bsonType": ["number", "bool", "object"]})
-POLICY = obj(["context_fields", "rules", "default_power"], context_fields=STRINGS,
-             rules={"bsonType": "array", "maxItems": 8,
-                    "items": obj(["when", "power"], when={"bsonType": "array", "maxItems": 4, "items": CONDITION},
-                                 power=NUM)},
-             default_power=NUM)
 VERDICT = obj(["accepted", "reasons", "fixed", "regressed", "cost_delta_pct"], accepted={"bsonType": "bool"},
               reasons=STRINGS, fixed=STRINGS, regressed=STRINGS, cost_delta_pct={"bsonType": ["number", "null"]})
 IDENTITY = obj(["evaluator_version", "manifest_sha256", "policy_sha256", "scenario_ids"],
                evaluator_version={"bsonType": "string"}, manifest_sha256={"bsonType": "string"},
                policy_sha256={"bsonType": "string"}, scenario_ids=STRINGS)
 HARNESS_VERSION = obj(["_id", "parent", "policy", "rationale", "predicted", "author", "status", "created_at"],
-                      _id={"bsonType": "string"}, parent={"bsonType": ["string", "null"]}, policy=POLICY,
+                      _id={"bsonType": "string"}, parent={"bsonType": ["string", "null"]},
+                      # flex.policy.validate owns the policy contract; a rejected malformed proposal must still store
+                      policy={"bsonType": "object"},
                       rationale={"bsonType": "string"}, predicted={"bsonType": "string"},
                       author={"enum": ["baseline", "control", "supervisor"]},
-                      status={"enum": ["candidate", "champion", "rejected"]}, verdict=VERDICT, identity=IDENTITY,
-                      created_at={"bsonType": "date"})
+                      status={"enum": ["candidate", "champion", "rejected", "retired"]},
+                      verdict=VERDICT, identity=IDENTITY, created_at={"bsonType": "date"})
 
 
 def ensure(db, name: str, **opts):
@@ -53,10 +47,10 @@ def run_collections(db):
     ensure(db, "hours", timeseries={"timeField": "ts", "metaField": "meta", "granularity": "hours"})
     ensure(db, "runs")
     ensure(db, "misses")
-    db.hours.create_index([("meta.run", ASCENDING), ("ts", ASCENDING)])
+    db.hours.create_index([("meta.run", ASCENDING), ("meta.attempt", ASCENDING), ("ts", ASCENDING)])
     db.runs.create_index([("version", ASCENDING), ("scenario", ASCENDING)])
     db.runs.create_index([("created_at", DESCENDING)])
-    db.misses.create_index([("run", ASCENDING), ("h", ASCENDING)])
+    db.misses.create_index([("run", ASCENDING), ("attempt", ASCENDING), ("h", ASCENDING)])
     db.misses.create_index([("kind", ASCENDING), ("scenario", ASCENDING)])
 
 

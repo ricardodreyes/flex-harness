@@ -4,6 +4,7 @@ import os
 from functools import cache
 from pathlib import Path
 from typing import Literal
+from uuid import uuid4
 
 import certifi
 from dotenv import load_dotenv
@@ -29,18 +30,35 @@ def save_version(v: HarnessVersion) -> None:
     client("supervisor")[DB].harness_versions.replace_one({"_id": v["_id"]}, v, upsert=True)
 
 
-def save_run(run: Run, result: SimResult) -> None:
+def save_run(run: Run, result: SimResult) -> str:
+    """Writes the evidence under a fresh attempt id before the summary points at it, so a crash at any step
+    leaves the previous complete result readable. Time-series writes can't join a transaction."""
+    if any(m["run"] != run["_id"] for m in result["misses"]):
+        raise ValueError(f"misses don't belong to run {run['_id']}")
     db = client("grader")[FINAL_DB] if run["split"] == "final" else client("supervisor")[DB]
-    db.runs.replace_one({"_id": run["_id"]}, {**run, "diagnosis": result["diagnosis"], "jobs": result["jobs"]},
-                        upsert=True)
-    # a rerun under the same id replaces its hours and misses instead of doubling them
-    db.hours.delete_many({"meta.run": run["_id"]})
-    db.misses.delete_many({"run": run["_id"]})
-    meta = {"run": run["_id"], "version": run["version"], "scenario": run["scenario"]}
+    attempt = uuid4().hex
+    meta = {"run": run["_id"], "version": run["version"], "scenario": run["scenario"], "attempt": attempt}
     if result["hours"]:
         db.hours.insert_many([{**h, "meta": meta} for h in result["hours"]])
     if result["misses"]:
-        db.misses.insert_many([dict(m) for m in result["misses"]])
+        db.misses.insert_many([{**m, "attempt": attempt} for m in result["misses"]])
+    db.runs.replace_one({"_id": run["_id"]},
+                        {**run, "attempt": attempt, "diagnosis": result["diagnosis"], "jobs": result["jobs"]},
+                        upsert=True)
+    db.hours.delete_many({"meta.run": run["_id"], "meta.attempt": {"$ne": attempt}})
+    db.misses.delete_many({"run": run["_id"], "attempt": {"$ne": attempt}})
+    return attempt
+
+
+def run_record(run_id: str, final: bool = False) -> dict | None:
+    """The run summary with only the hours and misses of the attempt it points at."""
+    db = client("grader")[FINAL_DB] if final else client("reader")[DB]
+    run = db.runs.find_one({"_id": run_id})
+    if not run:
+        return None
+    at = {"meta.run": run_id, "meta.attempt": run["attempt"]}
+    return {"run": run, "hours": list(db.hours.find(at, {"_id": 0}).sort("ts", 1)),
+            "misses": list(db.misses.find({"run": run_id, "attempt": run["attempt"]}, {"_id": 0}).sort("h", 1))}
 
 
 def promote(version_id: str, verdict: Verdict) -> None:
@@ -48,9 +66,8 @@ def promote(version_id: str, verdict: Verdict) -> None:
     db = mc[DB]
     with mc.start_session() as s, s.start_transaction():
         old = db.champion.find_one({"_id": "champion"}, session=s)
-        # contract.Status has no "retired", so a dethroned champion returns to the candidate pool
         if old and old["version"] != version_id:
-            db.harness_versions.update_one({"_id": old["version"]}, {"$set": {"status": "candidate"}}, session=s)
+            db.harness_versions.update_one({"_id": old["version"]}, {"$set": {"status": "retired"}}, session=s)
         db.champion.replace_one({"_id": "champion"}, {"_id": "champion", "version": version_id}, upsert=True,
                                 session=s)
         if not db.harness_versions.update_one({"_id": version_id}, {"$set": {"status": "champion", "verdict": verdict}},
