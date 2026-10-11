@@ -16,6 +16,10 @@ Rules for every lane:
 - Run Python with `uv run`. Add dependencies only after telling the coordinator.
 - Keep comments to the non-obvious why. No phase narration.
 
+## Status
+
+- 12:30 p.m.: Lane A is merged into `main`. v0 on `test` gives net $16,188, and a slack-aware policy gives $8,746. Run `git merge main` in your worktree to get it. Prices cover Apr 1 to Sep 28, 2026 in `data/caiso_np15_dam_2026.json`.
+
 ## Signatures between lanes
 
 Lane A:
