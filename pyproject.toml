@@ -1,0 +1,19 @@
+[project]
+name = "flex-harness"
+version = "0.1.0"
+description = "A power harness for AI data centers that rewrites its own rules from its misses, graded on real CAISO prices, with MongoDB Atlas as memory."
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=1.13",
+    "certifi",
+    "numpy>=2.0",
+    "pymongo[srv]>=4.10",
+    "python-dotenv>=1.0",
+    "raindrop-ai>=0.0.75",
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
