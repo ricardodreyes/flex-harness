@@ -13,6 +13,10 @@ Physics (owned by Lane A, identical for every policy, never editable by a candid
   Every start of a cold job owes restart_kwh of warm-up first: drawn and billed, but no progress. That is
   the simulated restart model; it consumes energy and, because power is capped, time.
 - Idle draw of the training cluster is assumed zero; facility idle draw is inside inference_kw.
+- A job is due at the start of hour deadline_h: it is on time iff its last work executes in an hour <= deadline_h - 1.
+  Each hour t >= deadline_h - 1 that ends with work remaining counts one late job-hour, so a job finishing in
+  hour done_h >= deadline_h has late_h = done_h - deadline_h + 1, and an unfinished job is late every hour from
+  deadline_h - 1 to the end of the world.
 - Arrivals stop at arrival_cutoff_h. The world continues through a settlement tail that covers the last
   deadline, priced with the real day-ahead prices for those hours. Work still unfinished at the end is
   reported as backlog and counts as a reliability failure.
@@ -22,7 +26,7 @@ from datetime import datetime
 from typing import Literal, NotRequired, TypedDict
 
 Split = Literal["dev", "validation", "final"]
-Status = Literal["candidate", "champion", "rejected"]
+Status = Literal["candidate", "champion", "rejected", "retired"]
 MissKind = Literal["late", "cap_intervention", "infeasible_hour", "unfinished"]
 Op = Literal["<", "<=", ">", ">=", "=="]
 

@@ -34,7 +34,7 @@ Edit only what you own. `flex/contract.py` is frozen again. Ask the coordinator 
 | `Scenario`, `ScenarioSettings` (protected) | A, in `flex/scenarios.py` | everyone, read only. A candidate that touches them is rejected. |
 | `Totals`, `JobOutcome`, `HourRecord`, `Miss`, `diagnosis` | A, in `flex.sim` | B uses dev runs only. C stores them. D shows them. |
 | `Verdict`, `EvalIdentity` | A, in `flex.evaluate` | B records them. C stores them. D shows the reasons. |
-| `HarnessVersion` | B (author "supervisor"), A (authors "baseline" and "control") | C persists it. D shows the lineage. |
+| `HarnessVersion` (status candidate, champion, rejected, or retired) | B (author "supervisor"), A (authors "baseline" and "control") | C persists it. D shows the lineage. |
 | `Run` | B builds it from A's results | C persists it. D shows it. |
 | `champion` pointer | C's `promote`, atomic | B, D |
 
@@ -45,30 +45,33 @@ Edit only what you own. `flex/contract.py` is frozen again. Ask the coordinator 
 | Split | Prices | Seeds | Used for |
 | --- | --- | --- | --- |
 | dev | Apr 1 to Jun 30, 2026 | 11, 12, 13 | Baseline tuning and the supervisor's evidence. Diagnosis lines and totals go into the prompt. |
-| validation | Jul 1 to Sep 28, 2026, including the Aug 30 window that was inspected and published earlier | 21, 22, 23 | The promotion gate. Repeated scoring here is selection feedback. Only the verdict reasons go back to the supervisor. |
+| validation | Jul 1 to Sep 28, 2026. Seeds 24-26 overlap the Aug 30 window that was inspected and published earlier. | 21-26, each at low and high restart cost (12 scenarios, declared at 1:40 p.m. before any results) | The promotion gate. Repeated scoring here is selection feedback. Only the verdict reasons go back to the supervisor. |
 | final | Sep 29 to Oct 10, 2026. Nobody had inspected these prices before they were reserved at 12:55 p.m. | 31, 32, 33 | One frozen comparison through `flex.final`. Never fed back into any repair. |
 
-The final prices sit in the public repo under `data/final/`. They're reserved by procedure, not by access control. The policy interpreter can't read files, and B must never put final data in a prompt. Say exactly that wherever isolation comes up.
+The final prices live outside the repo at `~/.config/flex/caiso_np15_dam_2026_final.json` (override with `FLEX_FINAL_PRICES`). Only `evaluate.run` reads them, and only for the final split; a test with a file-read spy checks that. They're public CAISO data, and an older copy is in the public git history, so this is held out by procedure and file location, not secrecy. The policy interpreter can't read files, and B must never put final data in a prompt. Say exactly that wherever isolation comes up.
 
 ## Acceptance rule
 
 `flex.evaluate.accept` applies these in order:
 1. An invalid candidate is rejected with the validator's reasons.
-2. A candidate that fails any validation scenario the champion passes is rejected for regression.
-3. A candidate that passes a scenario the champion failed is accepted as a repair, and its cost change is reported even when it costs more.
-4. Fewer late hours without a pass is logged as partial and rejected.
-5. Otherwise the pass set is identical. Accept only if training energy cost drops by more than 1% (`COST_TOLERANCE`).
+2. If the scenario sets differ, the candidate is rejected: "incomplete evaluation: missing X".
+3. If any feasible scenario gets worse (more late job-hours, unfinished work, or cap interventions, or fewer completed jobs), the candidate is rejected: "regression on X: ...". Abandoning work can't win.
+4. A candidate that passes a scenario the champion failed is accepted as a repair, with the cost change reported even when it costs more.
+5. Fewer late hours without a pass is rejected as partial.
+6. Otherwise reliability is identical. Accept only if training energy drops by more than 1% of |champion cost| ("cheaper: ..."). Increases read "not cheaper: ...".
+
+Measured at 1:44 p.m.: the incumbent fails val-25-high (1 late job-hour) and val-26-high (4), and passes the other 10. The hand-authored control repair is accepted with "repairs val-25-high, val-26-high; training energy -1.20%". The restart_aware reference is rejected with "regression on val-21-high: late_job_hours 0 -> 1". A zero-power policy is rejected for regression.
 
 A scenario passes with zero late job-hours, zero unfinished work, and zero cap interventions. Scenarios that are capacity-impossible or have infeasible hours are reported and excluded from pass/fail.
 
 ## Signatures
 
 Lane A:
-- `flex.scenarios.dev()`, `.validation()`, `.final()`, and `.manifest_sha256()`.
+- `flex.scenarios.dev()`, `.validation()`, `.final()`, and `.by_id(id)`. `EVALUATOR_VERSION` is "2026-10-11.3".
 - `flex.world.build_world(scenario, prices)`, `flex.world.prices(start, hours)`, and `flex.world.final_prices(start, hours)`. Only the final evaluator calls `final_prices`.
 - `flex.policy.validate(policy) -> list[str]` and `flex.policy.compile_policy(policy)`.
 - `flex.sim.simulate(world, policy, run_id, version_id) -> SimResult`.
-- `flex.evaluate.run(policy, scenarios, version_id) -> dict[str, SimResult]`, `.passes(totals)`, `.accept(candidate_policy, champion_results, candidate_results) -> Verdict`, and `.identity(policy, scenarios) -> EvalIdentity`.
+- `flex.evaluate.run(policy, scenarios, version_id) -> dict[str, SimResult]`, `.passes(totals)`, `.accept(candidate_policy, champion_results, candidate_results) -> Verdict`, and `.identity(policy, scenarios) -> EvalIdentity`. `identity` hashes the supplied scenarios and only the price files their splits use. The field is still named `manifest_sha256`.
 - `policies.incumbent.INCUMBENT`, frozen and tuned at low restart cost.
 - `policies.restart_aware.RESTART_AWARE`, a separately retuned reference.
 - `policies.control_repair.CONTROL_REPAIR`, the control.

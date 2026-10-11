@@ -1,9 +1,10 @@
 import pytest
 
 from flex.contract import Policy, Scenario, World
-from flex.evaluate import run
+from flex.evaluate import passes, run
 from flex.scenarios import by_id
 from flex.sim import simulate
+from flex.world import build_world, prices
 
 FULL: Policy = {"context_fields": [], "rules": [], "default_power": 1.0}
 # runs every hour except hour-of-day 1, so a job started at h0 is paused at h1 and resumes cold at h2
@@ -62,11 +63,33 @@ def test_terminal_backlog():
     r = simulate(world(6, [(0, 4, 7000.0)]), FULL, "t", "v")
     t = r["totals"]
     assert t["unfinished_kwh"] == pytest.approx(2800.0)
-    assert t["late_job_hours"] == 2  # hours 4 and 5
+    assert t["late_job_hours"] == 3  # hours 3, 4 and 5: due at the start of hour 4
     assert t["jobs_completed"] == 0
     assert any("impossible for any policy" in d for d in r["diagnosis"])
     assert any("unfinished" in d for d in r["diagnosis"])
     assert [m["kind"] for m in r["misses"]].count("unfinished") == 1
+
+
+def test_deadline_is_start_of_hour():
+    # 700 kWh due at the start of hour 1: idle in h0 then full in h1 finishes one hour late and fails
+    idle_h0: Policy = {"context_fields": ["hour_of_day"],
+                       "rules": [{"when": [{"field": "hour_of_day", "op": "==", "value": 0}], "power": 0.0}],
+                       "default_power": 1.0}
+    r = simulate(world(3, [(0, 1, 700.0)]), idle_h0, "t", "v")
+    assert (r["jobs"][0]["done_h"], r["jobs"][0]["late_h"], r["totals"]["late_job_hours"]) == (1, 1, 1)
+    assert not passes(r["totals"])
+    r = simulate(world(3, [(0, 1, 700.0)]), FULL, "t", "v")
+    assert (r["jobs"][0]["done_h"], r["jobs"][0]["late_h"], r["totals"]["late_job_hours"]) == (0, 0, 0)
+    assert passes(r["totals"])
+
+
+def test_dev_scenario_workload_literals():
+    sc = by_id("dev-11-low")
+    w = build_world(sc, prices(sc["start"], sc["arrival_days"] * 24 + sc["tail_h"]))
+    assert len(w["jobs"]) == 40
+    assert round(sum(j["work_kwh"] for j in w["jobs"])) == 258022
+    assert w["arrival_cutoff_h"] == 624
+    assert len(w["price"]) == len(w["inference_kw"]) == len(w["event"]) == 696
 
 
 def test_fixed_limits():
