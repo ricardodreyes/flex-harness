@@ -4,23 +4,23 @@ Both scripts show only work built on Oct 11, 2026. Every number comes from `resu
 
 ## One-minute video
 
-About 150 spoken words, five beats of about 12 seconds each.
+About 150 spoken words in five beats, timed at 150 words a minute.
 
-**0:00 to 0:12. The problem.**
-Show: the incumbent's validation runs.
-Say: "Restarts got expensive in our simulated AI data center. One cold start now burns a thousand and fifty kilowatt-hours of warm-up. The frozen scheduler starts missing deadlines on two validation scenarios."
+**0:00 to 0:08. The problem.**
+Show: the incumbent's validation runs, with the restart cost raised from 35 kWh to 1,050 kWh.
+Say: "Restarts got expensive in our simulated AI data center. The frozen scheduler starts missing deadlines on two validation scenarios."
 
-**0:12 to 0:24. The repair.**
+**0:08 to 0:20. The repair.**
 Show: version `g1-289b1a` and its verdict, "repairs val-25-high, val-26-high; training energy -1.93%".
 Say: "Claude reads the misses and rewrites the scheduler's rules. A fixed evaluator it can't edit checks the change. This one repairs both scenarios, with almost two percent less training energy."
 
-**0:24 to 0:36. A refusal.**
+**0:20 to 0:30. A refusal.**
 Show: version `g4-4a14cc` and its verdict, "regression on val-26-high: late_job_hours 0 -> 1".
 Say: "Not every edit gets in. This one looked reasonable. But it made one job an hour late. The evaluator called it a regression and refused it."
 
-**0:36 to 0:50. The held-out result.**
+**0:30 to 0:50. The held-out result.**
 Show: the final table. Champion `g5-e942f4` at $15,741.65, incumbent `v0` at $17,924.46, -12.18%.
-Say: "Then twelve days of prices nobody had seen. The champion met every deadline for about fifteen thousand seven hundred dollars. The incumbent cost seventeen thousand nine hundred. That's twelve percent less. It beat both hand-tuned references too."
+Say: "Then twelve days of prices nobody had seen. The champion met every deadline. So did the old scheduler, so this tests cost. The champion cost about fifteen thousand seven hundred dollars. The old one cost seventeen thousand nine hundred. That's twelve percent less. It beat both hand-tuned references too."
 
 **0:50 to 1:00. MongoDB.**
 Show: Atlas Data Explorer on `harness_versions`.
