@@ -46,7 +46,7 @@ Priorities, in order, are physical limits, then deadlines and completed work, th
 3. A candidate that makes any feasible scenario worse is rejected for regression. Worse means more late job-hours, more unfinished work, more cap interventions, or fewer completed jobs. Abandoning work can't win.
 4. A candidate that passes a scenario the champion failed is accepted as a repair. Its cost change is reported even when the cost goes up.
 5. Fewer late hours without a pass is rejected as partial progress.
-6. Otherwise reliability is identical, and the candidate is accepted only if training energy cost drops by more than 1% of the champion's cost.
+6. Otherwise no scenario got worse and none was repaired. The candidate is accepted only if training energy cost drops by more than 1% of the champion's cost.
 
 A scenario passes with zero late job-hours, zero unfinished work, and zero cap interventions. Scenarios that are capacity-impossible or that have infeasible hours are reported and left out of pass and fail.
 
@@ -112,6 +112,12 @@ Results come only from `results/final.json`, written once by `flex.final`.
 | control repair | [RESULT] | [RESULT] | [RESULT] | [RESULT] |
 
 The control repair is hand-written. It proves the scenario can be repaired. The supervisor never sees it, and it isn't agent-generated.
+
+## Known limitations
+
+- The promotion gate scores only the 12 validation scenarios. The final champion, `g5-e942f4`, has 2 late job-hours on dev-13-high, where its parent `g4-eac5bd` had none. Rerunning both policies from Atlas on dev-13-high measures that. The evaluator didn't change after anyone saw it. Both versions carry evaluator version `2026-10-11.3`, which is still the current one.
+- `flex.store.save_run` assumes one writer per run id. Two concurrent saves of the same run can delete each other's evidence and leave the summary pointing at an attempt that no longer exists.
+- Final-price isolation is procedure plus file location, not a security boundary. See [Data splits](#data-splits).
 
 ## Why large-load curtailment matters
 
