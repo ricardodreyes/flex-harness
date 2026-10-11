@@ -118,7 +118,7 @@ On the 3 final scenarios, every pinned version met every deadline, including the
 
 The champion beat both hand-tuned references on training energy.
 
-Two evolve runs wrote 12 versions to Atlas, the seed `v0` and 11 supervisor proposals. The evaluator rejected 7 of them with reasons. One is `g4-4a14cc`, rejected with "regression on val-26-high: late_job_hours 0 -> 1". Four accepted versions were later retired, and `g5-e942f4` is the champion. Raindrop recorded 17 proposal events, read from its dashboard at 2:40 p.m.
+Two evolve runs wrote 12 versions to Atlas, the seed `v0` and 11 supervisor proposals. The evaluator rejected 7 of them with reasons. One is `g4-4a14cc`, rejected with "regression on val-26-high: late_job_hours 0 -> 1". Four accepted versions were later retired, and `g5-e942f4` is the champion. Raindrop recorded 17 proposal events: 6 from a dry run that wrote nothing to Atlas, and 11 from the two Atlas runs, matching the 11 supervisor versions (counted from the dashboard timestamps at 2:40 p.m.).
 
 The control repair is hand-written. It proves the scenario can be repaired. The supervisor never sees it, and it isn't agent-generated.
 
