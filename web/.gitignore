@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.cache/
+.venv/
+evidence/
+.env
+.env.*
+__pycache__/
+.replay.tmp
+WORKLOG.md
+.impeccable/
