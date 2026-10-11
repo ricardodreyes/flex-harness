@@ -47,7 +47,7 @@ def accept(candidate_policy: Policy, champion_results: dict[str, SimResult],
     4. Any scenario the champion fails that the candidate passes is a repair: accept, and report the training
        cost delta over every feasible scenario even when it is positive.
     5. Late job-hours improving on a failing scenario without passing it is partial progress: reject, say so.
-    6. Otherwise reliability is identical. Accept only when summed training cost is below
+    6. Otherwise no scenario got worse and none was repaired. Accept only when summed training cost is below
        champion - COST_TOLERANCE x |champion|; a zero champion cost accepts only a negative candidate cost.
     Infeasible scenarios (an infeasible hour, or a capacity-impossible job) are excluded and listed.
     """

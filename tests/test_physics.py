@@ -46,6 +46,9 @@ def test_conservation_on_dev_scenario():
     from policies.incumbent import INCUMBENT
     r = run(INCUMBENT, [by_id("dev-12-high")], "v")["dev-12-high"]
     t = r["totals"]
+    assert (t["jobs_total"], t["jobs_completed"], len(r["hours"])) == (41, 41, 696)
+    assert t["work_kwh"] == pytest.approx(289807.07, abs=0.01)
+    assert t["overhead_kwh"] == pytest.approx(68429.06, abs=0.01)
     executed = sum(h["executed_kw"] for h in r["hours"])
     assert executed == pytest.approx(sum(h["productive_kw"] + h["overhead_kw"] for h in r["hours"]))
     assert t["productive_kwh"] == pytest.approx(t["work_kwh"] - t["unfinished_kwh"])
@@ -125,3 +128,5 @@ def test_same_arrivals_and_inference_across_policies():
     assert [j["work_kwh"] for j in a["jobs"]] == [j["work_kwh"] for j in b["jobs"]]
     assert [h["inference_kw"] for h in a["hours"]] == [h["inference_kw"] for h in b["hours"]]
     assert a["totals"]["work_kwh"] == b["totals"]["work_kwh"]
+    assert (len(a["jobs"]), len(a["hours"]), round(a["totals"]["work_kwh"])) == (40, 696, 258022)
+    assert round(sum(h["inference_kw"] for h in a["hours"])) == 118449
