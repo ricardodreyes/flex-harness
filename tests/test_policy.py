@@ -44,6 +44,34 @@ INVALID = {
     "non-bool value on running": rule(field="running", op="==", value=1),
     "not a dict": "def decide(obs): return 1",
     "rules not a list": variant(rules="x"),
+    "none": None,
+    "list": [],
+    "list field": rule(field=["price_pct"]),
+    "dict op": rule(op={"<=": 1}),
+    "list value": rule(value=[0.3]),
+    "list ref field": rule(value={"field": ["need_h"], "times": 1, "plus": 0}),
+    "dict field on bool": rule(field={"running": True}, op="==", value=True),
+    "huge int power": rule(power=10**309),
+    "huge int value": rule(value=10**309),
+    "huge int times": rule(value={"field": "need_h", "times": 10**309, "plus": 0}),
+    "nested junk": variant(rules=[{"when": [[[]]], "power": [[]]}, [], None, 1]),
+    "none condition": variant(rules=[{"when": [None], "power": 1.0}]),
+    "none power": rule(power=None),
+}
+REASON = {
+    "none": "policy must be an object",
+    "list": "policy must be an object",
+    "list field": "field and op must be strings",
+    "dict op": "field and op must be strings",
+    "list value": "value must be a finite number",
+    "list ref field": "reference to unknown field",
+    "dict field on bool": "field and op must be strings",
+    "huge int power": "power must be a finite number in [0, 1]",
+    "huge int value": "value must be a finite number",
+    "huge int times": "times must be a finite number",
+    "nested junk": "must have exactly when and power",
+    "none condition": "condition must be an object",
+    "none power": "power must be a finite number",
 }
 
 
@@ -51,6 +79,8 @@ INVALID = {
 def test_invalid_policy_gets_a_reason(name):
     reasons = validate(INVALID[name])
     assert reasons, name
+    if name in REASON:
+        assert any(REASON[name] in r for r in reasons), reasons
     with pytest.raises(PolicyError):
         compile_policy(INVALID[name])
 

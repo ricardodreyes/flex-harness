@@ -1,6 +1,7 @@
 """Control, not agent-generated, never shown to the supervisor. Exists only to prove a behavioral repair is
 feasible: the incumbent's frozen rules with `running` added to context, a hysteresis rule after the event rule,
-and the slack constant c raised by 2. Hand-authored, not tuned."""
+and the slack constant c raised by 2. Hand-authored, not tuned. Rebuilt by that recipe at 1:55 p.m. from the
+incumbent retuned after the lateness fix; the incumbent's literals did not move, so neither did these."""
 
 from flex.contract import Policy
 
