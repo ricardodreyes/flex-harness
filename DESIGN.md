@@ -55,6 +55,6 @@ The frozen champion saved 12.18% against the incumbent. Removing its physically 
 - [Evolution loop](flex/evolve.py) and [policy validation](flex/policy.py).
 - [Acceptance gate](flex/evaluate.py), [simulator](flex/sim.py), and [frozen final evaluation](flex/final.py).
 - [Evidence and promotion](flex/store.py), [watcher](flex/watch.py), and [database setup](db/setup.py).
-- [Recorded replay](web/public/replay.json) and [three-minute demo](docs/ROUND_ONE.md).
+- [Recorded replay](web/public/replay.json).
 
 Final-price separation is procedural and uses a separate file and database role. The underlying prices are public. See the [README limitations](README.md#known-limitations) before interpreting the results.

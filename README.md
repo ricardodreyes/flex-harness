@@ -1,6 +1,6 @@
 # Flex
 
-[Live replay](https://flex-app-mv4dhmmqouu-prod.cloud.modelence.app) · [Design and architecture](DESIGN.md) · [Three-minute judging demo](docs/ROUND_ONE.md)
+[Live replay](https://flex-app-mv4dhmmqouu-prod.cloud.modelence.app) · [Design and architecture](DESIGN.md)
 
 Restart costs rose 30x (35 to 1,050 kWh per cold start). The frozen scheduler passed 10 of 12 validation scenarios. Claude's first accepted repair passed 12 of 12, and every later champion kept 12 of 12. On 12 unseen days the champion at the freeze (`g5-e942f4`) cut training electricity cost 12.18% with zero missed deadlines. An ablation after the freeze shows most of that comes from one rule that holds running jobs at 1% power to stay warm, a behavior we have not validated on real hardware. Without that rule the saving is 4.28%, behind both hand-tuned references.
 
