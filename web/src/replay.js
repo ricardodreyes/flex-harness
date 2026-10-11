@@ -63,8 +63,46 @@ function compatible(left, right) {
     && JSON.stringify([...left.identity.scenario_ids].sort()) === JSON.stringify([...right.identity.scenario_ids].sort());
 }
 
+function finalResults(input, versions, runs) {
+  requireValue(Array.isArray(input), 'Missing final results.');
+  if (!input.length) return [];
+  requireValue(input.length === 7, 'Final results must cover all seven pinned versions.');
+  const ids = new Set();
+  const rows = input.map(record => {
+    const row = pick(record, ['version', 'author', 'acceptance', 'role', 'identity', 'training_cost', 'scenarios']);
+    requireValue(text(row.version) && !ids.has(row.version), 'Duplicate or invalid final version.');
+    ids.add(row.version);
+    requireValue(['baseline', 'control', 'supervisor'].includes(row.author) && ['champion', 'reference'].includes(row.role)
+      && [null, 'repair', 'cost'].includes(row.acceptance), 'Invalid final labels.');
+    row.identity = pick(row.identity, identityFields);
+    validateIdentity(row.identity);
+    const names = row.identity.scenario_ids;
+    requireValue(names.length === 3 && new Set(names).size === 3 && names.every(name => name.startsWith('final-'))
+      && row.scenarios && JSON.stringify(Object.keys(row.scenarios).sort()) === JSON.stringify([...names].sort()), 'Incomplete final scenarios.');
+    if (row.role !== 'reference') {
+      const version = versions.get(row.version);
+      const policyHashes = runs.filter(run => run.version === row.version).map(run => run.identity.policy_sha256);
+      if (version?.identity) policyHashes.push(version.identity.policy_sha256);
+      requireValue(version?.author === row.author && policyHashes.length > 0
+        && policyHashes.every(hash => hash === row.identity.policy_sha256), 'Final version does not match its policy.');
+    }
+    row.scenarios = Object.fromEntries(names.map(name => {
+      const result = row.scenarios[name];
+      const totals = pick(result.totals, totalFields);
+      requireValue(totalFields.every(key => number(totals[key])) && typeof result.passes === 'boolean'
+        && typeof result.feasible === 'boolean', 'Invalid final scenario totals.');
+      return [name, { totals, passes: result.passes, feasible: result.feasible }];
+    }));
+    const sum = Object.values(row.scenarios).reduce((total, result) => total + result.totals.training_energy_cost, 0);
+    requireValue(number(row.training_cost) && Math.abs(row.training_cost - sum) <= Math.max(1e-6, Math.abs(sum) * 1e-10), 'Final training cost does not match its scenarios.');
+    return row;
+  });
+  requireValue(rows.every(row => compatible(rows[0], row)), 'Final identities do not match.');
+  return rows;
+}
+
 export function organizeReplay(input) {
-  requireValue(input?.schema_version === 1 && ['fixture', 'recorded evaluation replay', 'live'].includes(input.source), 'Unsupported replay or source.');
+  requireValue(input?.schema_version === 1 && ['fixture', 'recorded evaluation replay'].includes(input.source), 'Unsupported replay or source.');
   for (const name of ['versions', 'runs', 'hours', 'misses', 'scenarios']) requireValue(Array.isArray(input[name]), `Missing ${name} records.`);
   const replay = { schema_version: 1, source: input.source, generated_at: input.generated_at, scenarios: input.scenarios };
   for (const name of Object.keys(fields)) replay[name] = input[name].map(record => sanitizeRecord(name, record));
@@ -163,11 +201,36 @@ export function organizeReplay(input) {
       && versions.get(focus.version)?.acceptance === 'repair', 'Invalid replay focus.');
     const selected = comparison(focus.version, focus.scenario);
     requireValue(selected.candidate?.split === 'validation' && !selected.unavailable, 'Replay focus does not match compatible validation runs.');
-    focus = { version: focus.version, scenario: focus.scenario };
+    requireValue(focus.baseline === undefined || focus.baseline === selected.baseline.version, 'Replay focus baseline does not match.');
+    focus = { baseline: selected.baseline.version, version: focus.version, scenario: focus.scenario };
   } else {
     const repair = proposals.filter(version => version.acceptance === 'repair').sort(newest)
       .find(version => runList.some(record => record.version === version._id && record.scenario === 'val-26-high'));
-    if (repair) focus = { version: repair._id, scenario: 'val-26-high' };
+    if (repair) focus = { baseline: comparison(repair._id, 'val-26-high').baseline?.version, version: repair._id, scenario: 'val-26-high' };
   }
-  return { ...replay, focus, versions, runs, runList, proposals, comparison };
+  const evolveRuns = input.evolve_runs ?? [];
+  requireValue(Array.isArray(evolveRuns), 'Invalid evolution runs.');
+  const grouped = new Set();
+  const runIds = new Set();
+  const evolve_runs = evolveRuns.map(group => {
+    requireValue(Number.isInteger(group.run) && group.run > 0 && !runIds.has(group.run) && strings(group.versions), 'Invalid evolution run label.');
+    runIds.add(group.run);
+    for (const id of group.versions) {
+      const version = versions.get(id);
+      requireValue(version?.author === 'supervisor' && versions.has(version.parent) && !grouped.has(id), 'Invalid evolution lineage.');
+      grouped.add(id);
+      version.evolveRun = group.run;
+      version.generation = id.split('-')[0];
+    }
+    return { run: group.run, versions: [...group.versions] };
+  });
+  requireValue(replay.versions.filter(version => version.author === 'supervisor').every(version => grouped.has(version._id))
+    || !evolve_runs.length, 'Evolution lineage is incomplete.');
+  const final_results = finalResults(input.final_results ?? [], versions, runList);
+  requireValue(input.source !== 'fixture' || !final_results.length, 'Final results cannot be labeled fixture.');
+  const featured_rejection = input.featured_rejection ?? null;
+  requireValue(featured_rejection === null || versions.get(featured_rejection)?.verdict?.accepted === false, 'Invalid featured rejection.');
+  const allFinalDeadlines = final_results.length > 0 && final_results.every(row => Object.values(row.scenarios).every(({ totals }) =>
+    totals.jobs_completed === totals.jobs_total && totals.jobs_late === 0 && totals.late_job_hours === 0 && totals.unfinished_kwh === 0));
+  return { ...replay, focus, versions, runs, runList, proposals, comparison, evolve_runs, final_results, featured_rejection, allFinalDeadlines };
 }

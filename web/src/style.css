@@ -89,6 +89,13 @@ footer p { margin-top: 12px; line-height: 1.7; }
 .error h1 { font-size: 42px; }
 .error p { line-height: 1.7; margin-top: 20px; }
 pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
+.featured-verdicts { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin: 28px 0; }
+.featured-verdicts article { border-left: 3px solid var(--blue); padding-left: 20px; }
+.featured-verdicts p { line-height: 1.65; color: #586274; }
+.evolve-run { margin-top: 32px; }
+.evolve-run ol { padding-left: 22px; }
+.evolve-run li { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.evolve-run li span { display: block; color: #586274; font-size: 13px; line-height: 1.6; margin-top: 5px; overflow-wrap: anywhere; }
 @media (max-width: 760px) {
   .masthead { padding: 20px 24px; }
   .masthead > span:not(.source) { display: none; }
@@ -103,7 +110,7 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
   .metric strong { font-size: 29px; }
   .metric span { font-size: 12px; }
   .metric small { font-size: 10px; }
-  .policy-grid, .proposal-copy { grid-template-columns: 1fr; }
+  .policy-grid, .proposal-copy, .featured-verdicts { grid-template-columns: 1fr; }
   .selection { flex-direction: column; align-items: stretch; gap: 10px; }
   .baseline { padding: 17px; }
   .baseline .section-top, .chart .section-top { align-items: start; }

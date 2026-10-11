@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import json
 import math
 from pathlib import Path
+import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -18,6 +19,102 @@ from policies.incumbent import INCUMBENT
 
 OUTPUT = ROOT / "web/public/replay.json"
 SCENARIO = "val-26-high"
+FOCUS = {"baseline": "v0", "version": "g1-289b1a", "scenario": SCENARIO}
+EVOLVE_RUNS = [
+    {"run": 1, "versions": ["g1-289b1a", "g2-4c62c7", "g3-efd420", "g4-4a14cc", "g5-683c0e"]},
+    {"run": 2, "versions": ["g1-635b00", "g2-9db57e", "g3-c4b5fd", "g4-eac5bd", "g5-e942f4", "g6-e4085d"]},
+]
+FEATURED_REJECTION = "g4-4a14cc"
+FINAL_RESULTS = ROOT / "results/final.json"
+FINAL_MANIFEST = ROOT / "results/final_manifest.json"
+CREDENTIAL = re.compile(r"sk-ant-|mongodb(?:\+srv)?://[^\s/@:]+:[^\s/@]+@|BEGIN(?: [A-Z0-9]+)* PRIVATE KEY|rdk_", re.IGNORECASE)
+
+
+class CredentialPatternError(ValueError):
+    pass
+
+
+def check_credentials(value, path="$"):
+    if isinstance(value, str):
+        if CREDENTIAL.search(value):
+            raise CredentialPatternError(f"Credential pattern at {path}")
+    elif isinstance(value, dict):
+        for index, (key, child) in enumerate(value.items()):
+            check_credentials(key, f"{path}[key #{index}]")
+            check_credentials(child, f"{path}[{json.dumps(key)}]")
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            check_credentials(child, f"{path}[{index}]")
+
+
+def final_results(path=FINAL_RESULTS, manifest_path=FINAL_MANIFEST):
+    from flex.contract import EvalIdentity
+
+    results = json.loads(path.read_text())
+    manifest = json.loads(manifest_path.read_text())
+    pinned = manifest["pinned"]
+    if len(pinned) != 7 or list(results) != [row["version"] for row in pinned]:
+        raise ValueError("Final results do not match all seven pinned versions")
+    common = pinned[0]["identity"]
+    rows = []
+    for pin in pinned:
+        version = pin["version"]
+        record = results[version]
+        identity_record = record["identity"]
+        if (identity_record != pin["identity"]
+                or any(not isinstance(identity_record.get(key), str) or not identity_record[key]
+                       for key in ("evaluator_version", "manifest_sha256", "policy_sha256"))
+                or identity_record["evaluator_version"] != manifest["evaluator_version"]
+                or identity_record["manifest_sha256"] != common["manifest_sha256"]
+                or identity_record["scenario_ids"] != common["scenario_ids"]
+                or len(identity_record["scenario_ids"]) != 3
+                or len(set(identity_record["scenario_ids"])) != 3
+                or any(not isinstance(name, str) or not name.startswith("final-")
+                       for name in identity_record["scenario_ids"])):
+            raise ValueError("Invalid final result identity")
+        if (any(record[key] != pin[key] for key in ("author", "acceptance", "role"))
+                or record["author"] not in ("baseline", "control", "supervisor")
+                or record["acceptance"] not in (None, "repair", "cost")
+                or record["role"] not in ("champion", "reference")):
+            raise ValueError("Invalid final result labels")
+        if set(record["scenarios"]) != set(identity_record["scenario_ids"]):
+            raise ValueError("Incomplete final scenario coverage")
+        scenarios = {}
+        for name in identity_record["scenario_ids"]:
+            result = record["scenarios"][name]
+            totals = result["totals"]
+            if (any(not finite(totals.get(key)) for key in Totals.__annotations__)
+                    or any(not isinstance(result.get(key), bool) for key in ("passes", "feasible"))):
+                raise ValueError("Incomplete or invalid final totals")
+            scenarios[name] = {"totals": {key: totals[key] for key in Totals.__annotations__},
+                               "passes": result["passes"], "feasible": result["feasible"]}
+        cost = record["training_cost"]
+        if not finite(cost) or not math.isclose(cost, sum(row["totals"]["training_energy_cost"]
+                                                        for row in scenarios.values()), rel_tol=1e-10, abs_tol=1e-6):
+            raise ValueError("Final training cost does not match scenario totals")
+        rows.append({"version": version, **{key: record[key] for key in ("author", "acceptance", "role")},
+                     "identity": {key: identity_record[key] for key in EvalIdentity.__annotations__},
+                     "training_cost": cost, "scenarios": scenarios})
+    return rows
+
+
+def recorded_metadata():
+    return {"focus": dict(FOCUS), "evolve_runs": EVOLVE_RUNS,
+            "featured_rejection": FEATURED_REJECTION, "final_results": final_results()}
+
+
+def validate_lineage(replay):
+    versions = {version["_id"]: version for version in replay["versions"]}
+    grouped = [version for group in replay["evolve_runs"] for version in group["versions"]]
+    supervisor = [version["_id"] for version in versions.values() if version["author"] == "supervisor"]
+    if len(grouped) != len(set(grouped)) or set(grouped) != set(supervisor):
+        raise ValueError("Evolution run mapping does not cover stored supervisor versions")
+    for version in versions.values():
+        if version["parent"] is not None and version["parent"] not in versions:
+            raise ValueError("Lineage parent is unavailable")
+    rejected = replay.get("featured_rejection")
+    if rejected is not None and versions.get(rejected, {}).get("verdict", {}).get("accepted") is not False:
+        raise ValueError("Featured rejection is unavailable")
 FIELDS = {
     "versions": list(HarnessVersion.__annotations__),
     "runs": [*Run.__annotations__, "jobs", "diagnosis"],
@@ -76,6 +173,7 @@ def fixture():
             meta = {"run": run_id, "version": version_id, "scenario": scenario["id"]}
             replay["hours"].extend({**hour, "meta": meta} for hour in result["hours"])
             replay["misses"].extend(result["misses"])
+    replay.update(final_results=[], evolve_runs=[], featured_rejection=None)
     selected = select_focus(replay)
     replay["hours"] = [hour for hour in replay["hours"] if hour["meta"]["run"] in selected]
     replay["misses"] = [miss for miss in replay["misses"] if miss["run"] in selected]
@@ -128,7 +226,10 @@ def select_focus(replay):
                if version["acceptance"] == "repair" and (version["_id"], SCENARIO) in runs]
     if not repairs:
         raise ValueError("No accepted repair with the required validation run")
-    repair = max(repairs, key=lambda version: (str(version["created_at"]), version["_id"]))
+    focus = replay.get("focus")
+    repair = versions.get(focus["version"]) if focus else max(repairs, key=lambda version: (str(version["created_at"]), version["_id"]))
+    if repair not in repairs:
+        raise ValueError("Pinned repair is unavailable")
     candidate = runs[repair["_id"], SCENARIO]
     parent = runs.get((repair["parent"], SCENARIO))
     if not parent or not compatible(parent, candidate):
@@ -146,7 +247,9 @@ def select_focus(replay):
             or any(before_jobs[job_id][key] != after_jobs[job_id][key] for job_id in before_jobs
                    for key in ("arrive_h", "deadline_h", "work_kwh"))):
         raise ValueError("Selected job workloads differ")
-    replay["focus"] = {"version": repair["_id"], "scenario": SCENARIO}
+    if focus and (focus["baseline"] != baselines[0]["version"] or focus["scenario"] != SCENARIO):
+        raise ValueError("Pinned baseline is unavailable")
+    replay["focus"] = {"baseline": baselines[0]["version"], "version": repair["_id"], "scenario": SCENARIO}
     return [baselines[0]["_id"], candidate["_id"]]
 
 
@@ -182,6 +285,7 @@ def recorded():
 
     replay = {"schema_version": 1, "source": "recorded evaluation replay",
               "generated_at": datetime.now(timezone.utc), "scenarios": dev() + validation()}
+    replay.update(recorded_metadata())
     connection = client("reader")
     try:
         db = connection["flex"]
@@ -197,6 +301,7 @@ def recorded():
             return [sanitize(key, record) for record in records]
 
         replay["versions"] = read("versions", "harness_versions", {})
+        validate_lineage(replay)
         attempts = {}
         replay["runs"] = read("runs", "runs", {"split": {"$in": ["dev", "validation"]}}, attempts)
         selected = select_focus(replay)
@@ -261,6 +366,7 @@ def serialize(value):
 def export(use_fixture=False, output=OUTPUT):
     replay = fixture() if use_fixture else recorded()
     payload = json.dumps(replay, default=serialize, separators=(",", ":"), allow_nan=False)
+    check_credentials(json.loads(payload))
     output.parent.mkdir(parents=True, exist_ok=True)
     pending = output.parent.parent / ".replay.tmp"
     pending.write_text(payload + "\n")
@@ -276,6 +382,9 @@ if __name__ == "__main__":
         replay = export(args.fixture)
         print(f"Exported {replay['source']}: {len(replay['versions'])} versions, "
               f"{len(replay['runs'])} runs, {len(replay['hours'])} hours to web/public/replay.json")
+    except CredentialPatternError as error:
+        print(f"Replay export failed: {error}", file=sys.stderr)
+        sys.exit(1)
     except Exception as error:
         print(f"Replay export failed ({type(error).__name__}). Check the reader setup and source records.", file=sys.stderr)
         sys.exit(1)

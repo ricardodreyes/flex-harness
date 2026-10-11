@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from web.scripts.export_replay import export, fixture, recorded, SCENARIO
+from web.scripts.export_replay import CredentialPatternError, export, final_results, fixture, recorded, SCENARIO
 
 
 def matches(record, query):
@@ -65,12 +65,38 @@ class ExportReplayTests(unittest.TestCase):
 
     def setUp(self):
         self.reader = Reader(self.fixture)
+        patch("web.scripts.export_replay.recorded_metadata", return_value={
+            "focus": dict(self.fixture["focus"]), "final_results": [], "evolve_runs": [], "featured_rejection": None,
+        }).start()
         self.client = patch("flex.store.client", return_value=self.reader).start()
         self.addCleanup(patch.stopall)
         self.repair = next(version for version in self.reader.records["harness_versions"]
                            if version["acceptance"] == "repair")
         self.baseline = next(version for version in self.reader.records["harness_versions"]
                              if version["author"] == "baseline")
+
+    def test_final_scores_match_all_pinned_versions_and_validate_costs(self):
+        rows = final_results()
+        self.assertEqual([row["version"] for row in rows],
+                         ["v0", "g1-289b1a", "g5-683c0e", "g4-eac5bd", "g5-e942f4", "restart_aware", "control"])
+        self.assertEqual([row["version"] for row in rows if row["role"] == "reference"], ["restart_aware", "control"])
+        source = Path(__file__).resolve().parents[2] / "results/final.json"
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "final.json"
+            original = json.loads(source.read_text())
+            for change in ("cost", "scenario", "identity", "totals"):
+                altered = deepcopy(original)
+                if change == "cost":
+                    altered["v0"]["training_cost"] += 1
+                elif change == "scenario":
+                    altered["v0"]["scenarios"].pop("final-31")
+                elif change == "identity":
+                    altered["v0"]["identity"]["policy_sha256"] = "other"
+                else:
+                    altered["v0"]["scenarios"]["final-31"]["totals"].pop("jobs_total")
+                path.write_text(json.dumps(altered))
+                with self.subTest(change=change), self.assertRaises(ValueError):
+                    final_results(path=path)
 
     def test_reader_export_keeps_verbatim_reasons_and_structured_markers(self):
         self.repair["verdict"]["reasons"] = ["repairs val-26-high; training energy +2.1% to restore deadlines"]
@@ -82,7 +108,7 @@ class ExportReplayTests(unittest.TestCase):
         self.client.assert_called_once_with("reader")
         self.assertTrue(self.reader.closed)
         self.assertEqual(replay["source"], "recorded evaluation replay")
-        self.assertEqual(replay["focus"], {"version": self.repair["_id"], "scenario": SCENARIO})
+        self.assertEqual(replay["focus"], {"baseline": self.baseline["_id"], "version": self.repair["_id"], "scenario": SCENARIO})
         versions = {version["_id"]: version for version in replay["versions"]}
         self.assertEqual(versions[self.repair["_id"]]["verdict"]["reasons"], self.repair["verdict"]["reasons"])
         self.assertEqual(versions[self.repair["_id"]]["acceptance"], "repair")
@@ -117,7 +143,7 @@ class ExportReplayTests(unittest.TestCase):
         for run_id in {hour["meta"]["run"] for hour in replay["hours"]}:
             self.assertEqual([hour["h"] for hour in replay["hours"] if hour["meta"]["run"] == run_id], list(range(expected)))
 
-    def test_equal_timestamps_choose_the_last_id_deterministically(self):
+    def test_pinned_repair_survives_newer_repairs(self):
         newer = deepcopy(self.repair)
         newer["_id"] = "z-repair"
         self.reader.records["harness_versions"].insert(0, newer)
@@ -132,12 +158,12 @@ class ExportReplayTests(unittest.TestCase):
                 hour["meta"].update(run=candidate["_id"], version="z-repair", attempt="new-attempt")
                 self.reader.records["hours"].append(hour)
         replay = recorded()
-        self.assertEqual(replay["focus"]["version"], "z-repair")
-        self.assertEqual({hour["meta"]["version"] for hour in replay["hours"]}, {self.baseline["_id"], "z-repair"})
+        self.assertEqual(replay["focus"]["version"], self.repair["_id"])
+        self.assertEqual({hour["meta"]["version"] for hour in replay["hours"]}, {self.baseline["_id"], self.repair["_id"]})
 
     def test_parent_is_preserved_when_it_is_not_the_frozen_baseline(self):
         ancestor = deepcopy(self.baseline)
-        ancestor.update(_id="ancestor", author="supervisor", parent=self.baseline["_id"], status="retired")
+        ancestor.update(_id="ancestor", author="control", parent=self.baseline["_id"], status="retired")
         self.reader.records["harness_versions"].append(ancestor)
         parent_run = deepcopy(next(run for run in self.reader.records["runs"]
                                    if run["version"] == self.baseline["_id"] and run["scenario"] == SCENARIO))
@@ -163,7 +189,7 @@ class ExportReplayTests(unittest.TestCase):
 
     def test_missing_parent_is_rejected(self):
         self.repair["parent"] = "unrecorded-parent"
-        with self.assertRaisesRegex(ValueError, "Matching parent"):
+        with self.assertRaisesRegex(ValueError, "Lineage parent"):
             recorded()
 
     def test_missing_frozen_baseline_is_rejected(self):
@@ -251,7 +277,7 @@ class ExportReplayTests(unittest.TestCase):
             export(output=output)
             replay = json.loads(output.read_text())
             self.assertEqual(replay["source"], "recorded evaluation replay")
-            self.assertEqual(replay["focus"], {"version": self.repair["_id"], "scenario": SCENARIO})
+            self.assertEqual(replay["focus"], {"baseline": self.baseline["_id"], "version": self.repair["_id"], "scenario": SCENARIO})
             self.assertFalse((Path(directory) / ".replay.tmp").exists())
 
 

@@ -1,13 +1,12 @@
-import json
 from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from flex.evaluate import accept
-from web.scripts.export_replay import sanitize
+from web.scripts.export_replay import fixture, sanitize
 
-replay = json.loads((Path(__file__).resolve().parents[1] / "public/replay.json").read_text())
+replay = fixture()
 versions = {version["_id"]: version for version in replay["versions"]}
 runs = {run["_id"]: run for run in replay["runs"]}
 scenarios = {scenario["id"]: scenario for scenario in replay["scenarios"]}

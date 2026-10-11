@@ -18,6 +18,67 @@ const baseline = 'fixture-incumbent';
 const scenarioId = fixture.focus.scenario;
 const scenario = fixture.scenarios.find(record => record.id === scenarioId);
 const expectedHours = scenario.arrival_days * 24 + scenario.tail_h;
+const finalSource = JSON.parse(readFileSync(new URL('../../results/final.json', import.meta.url)));
+const finalManifest = JSON.parse(readFileSync(new URL('../../results/final_manifest.json', import.meta.url)));
+
+function finalReplay() {
+  const input = copy();
+  input.source = 'recorded evaluation replay';
+  input.final_results = Object.entries(finalSource).map(([version, row]) => ({ version, ...structuredClone(row) }));
+  input.versions.push(...finalManifest.pinned.filter(row => row.role !== 'reference').map(row => ({
+    _id: row.version, parent: row.version === 'v0' ? null : 'v0', author: row.author, policy: row.policy,
+    status: 'retired', identity: row.identity, rationale: 'Recorded proposal', predicted: 'Recorded prediction',
+  })));
+  input.evolve_runs = [
+    { run: 1, versions: ['g1-289b1a', 'g5-683c0e'] },
+    { run: 2, versions: ['g4-eac5bd', 'g5-e942f4'] },
+  ];
+  return input;
+}
+
+test('final scores retain all seven pins, references and separate final identities', () => {
+  const data = organizeReplay(finalReplay());
+  assert.deepEqual(data.final_results.map(row => row.version), Object.keys(finalSource));
+  assert.deepEqual(data.final_results.filter(row => row.role === 'reference').map(row => row.version), ['restart_aware', 'control']);
+  assert.equal(data.allFinalDeadlines, true);
+  assert.equal(data.versions.get('g5-683c0e').evolveRun, 1);
+  assert.equal(data.versions.get('g4-eac5bd').evolveRun, 2);
+  assert.equal(data.versions.get('g4-eac5bd').generation, 'g4');
+  assert.equal(data.versions.get('g4-eac5bd').parent, 'v0');
+  assert.ok(data.runList.every(run => run.split !== 'final'));
+  const late = finalReplay();
+  late.final_results[0].scenarios['final-31'].totals.late_job_hours = 1;
+  assert.equal(organizeReplay(late).allFinalDeadlines, false);
+});
+
+test('final score coverage, totals and lineage fail closed when inconsistent', () => {
+  for (const mutate of [
+    input => input.final_results.pop(),
+    input => { input.final_results[0].training_cost += 1; },
+    input => { delete input.final_results[0].scenarios['final-31']; },
+    input => { input.final_results[0].identity.policy_sha256 = 'other'; },
+    input => { input.evolve_runs[1].versions.push('missing'); },
+    input => { input.source = 'fixture'; },
+    input => { input.source = 'live'; },
+  ]) {
+    const input = finalReplay();
+    mutate(input);
+    assert.throws(() => organizeReplay(input));
+  }
+});
+
+test('stored baseline without a version identity is checked against its persisted run hashes', () => {
+  const input = finalReplay();
+  delete input.versions.find(version => version._id === 'v0').identity;
+  const run = structuredClone(input.runs.find(record => record.version === baseline));
+  run._id = `v0:${run.scenario}`;
+  run.version = 'v0';
+  run.identity.policy_sha256 = finalSource.v0.identity.policy_sha256;
+  input.runs.push(run);
+  assert.equal(organizeReplay(input).final_results[0].version, 'v0');
+  run.identity.policy_sha256 = 'another-policy';
+  assert.throws(() => organizeReplay(input), /Final version does not match/);
+});
 
 test('real simulator fixture retains authors, validation verdict, diagnosis, hours and jobs', () => {
   const data = organizeReplay(fixture);
@@ -82,17 +143,17 @@ test('focus opens the accepted repair even with a newer cost acceptance', () => 
   cost.verdict.fixed = [];
   cost.verdict.reasons = ['unparsed evaluator text'];
   input.versions.push(cost);
-  for (const source of ['fixture', 'recorded evaluation replay', 'live']) {
+  for (const source of ['fixture', 'recorded evaluation replay']) {
     input.source = source;
     const data = organizeReplay(input);
-    assert.deepEqual(data.focus, { version: repair, scenario: 'val-26-high' });
+    assert.deepEqual(data.focus, { baseline, version: repair, scenario: 'val-26-high' });
     assert.equal(data.versions.get(repair).acceptance, 'repair');
     assert.equal(data.versions.get(cost._id).acceptance, 'cost');
     assert.equal(data.versions.get(baseline).acceptance, null);
     assert.deepEqual(data.versions.get(cost._id).verdict.reasons, ['unparsed evaluator text']);
   }
   delete input.focus;
-  assert.deepEqual(organizeReplay(input).focus, { version: repair, scenario: 'val-26-high' });
+  assert.deepEqual(organizeReplay(input).focus, { baseline, version: repair, scenario: 'val-26-high' });
 });
 
 test('unknown or incompatible focus fails instead of opening another proposal', () => {

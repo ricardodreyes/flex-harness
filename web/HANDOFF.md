@@ -1,49 +1,50 @@
-# Lane D handoff
+# Lane D final replay handoff
 
 ## Current behavior
 
-The recorded exporter reads through `flex.store.client("reader")`. It retains version history and development/validation runs with totals, jobs, and diagnosis. Verdict reasons are preserved verbatim. Accepted versions carry `acceptance: "repair"` when `verdict.fixed` is nonempty, or `acceptance: "cost"` otherwise. Other versions carry null. Retired accepted repairs remain eligible.
+Merged `main` through `ada741e` into `lane-web`. All authored changes remain under `web/`.
 
-The exporter selects the newest compatible accepted repair with a `val-26-high` run and writes `focus: {version, scenario}`. Only that repair and the matching frozen incumbent’s hourly streams are exported. Hours and misses are filtered by the attempt referenced by each run summary. Orphan evidence from a crashed save cannot enter the replay.
+The demo is recorded-only. `server.js`, the live npm command, MongoDB JavaScript dependency, Vite API proxy, and live query branch were removed. The browser reads `/replay.json`, including when the URL contains `?mode=live`. Database credentials remain in the local Python export environment.
 
-Before atomic replacement, the exporter checks run identities, finite totals, diagnosis, complete unique jobs, matching workloads, and complete matched hourly inputs. Missing or incompatible evidence leaves the existing artifact unchanged.
+The Atlas export contains 12 versions, 184 development/validation run summaries, and 1,392 hourly records. Runs retain totals, jobs, and simulator diagnosis. Hours and misses match the attempt referenced by each stored run summary. Expected hour counts, matching inputs/workloads, identities, and complete jobs are checked before replacement. Verdict reasons render verbatim. Acceptance is `repair` when `verdict.fixed` is nonempty and `cost` otherwise.
 
-The page opens on the focused repair and scenario. Acceptance labels identify repairs and cost improvements. Charts and job outcomes compare the frozen incumbent against the proposal. Ordered policy changes and evaluator verdicts still refer to the actual parent. Every panel retains its source label. Credentials remain server-side. The production build reads only the static replay and browser assets.
+Every serialized string and key passes the credential-pattern guard before the exporter creates or replaces a file. It rejects Anthropic token prefixes, credential-bearing MongoDB URIs, private-key headers, and `rdk_` prefixes. Errors name only the field path. Canary failures preserve the prior artifact.
 
-## Merge and changed files
+The opening uses the ordinary expensive-restart case `dev-13-high`, comparing `v0` with the featured repair. It does not select the capacity-impossible stress case just because that case has more missed deadlines. The before/after panel stays on `v0` versus `g1-289b1a` on `val-26-high`, including after selecting a rejected proposal. Job completion is shown as the end of its last hour of work.
 
-Merged main through `1cd5bff`, including the new evaluator contract and Lane C’s attempt-safe store. Changes authored in this lane remain under `web/`.
+Lineage labels include both evolution run and generation, using checked run membership and the stored parent edges. Run 1 contains five proposals; run 2 contains six. Both `g1-289b1a` and rejected `g4-4a14cc` have featured verbatim reasons.
 
-- `scripts/export_replay.py` selects, validates, and writes the focused replay.
-- `scripts/check_fixture.py` checks exported hourly physics and every validation verdict.
-- `src/replay.js` carries acceptance and focus, and joins baseline comparisons.
-- `src/main.jsx` opens the focus and labels acceptance and comparison roles.
-- `tests/test_export_replay.py` checks reader-only queries, stale attempts, invalid evidence, and preservation of existing output.
-- `tests/replay.test.js` checks the replay consumer using an independently generated simulator fixture.
-- `scripts/browser_check.mjs` checks the focused page and its failure states.
-- `public/replay.json` remains a simulator fixture.
-- `README.md` and `HANDOFF.md` record commands and current limits.
+The scoreboard includes all seven pins from `results/final.json` in source order: five promoted versions and two labeled references. Final identities remain separate from development/validation identities. All seven met every final deadline. The page explicitly identifies the validation verdict as the repair evidence. Baseline `v0` lacks a version identity in Atlas, so the browser validates its final policy hash against its persisted run identities.
 
-`modelence.config.json` was already correct. It remains in `web/` with `node-22-slim`, resource root `web`, commands `npm ci` and `npm run build`, and static path `/` from `dist`. Per Modelence’s setup instructions, the coordinator must put the config at the repository root before deployment while retaining `root: web`.
+## Changed files
 
-## Actual verification
+- `scripts/export_replay.py`: fail-closed credential boundary, seven final rows, explicit focus and evolution metadata.
+- `scripts/check_fixture.py`: checks fresh simulator fixtures in memory without replacing the recorded release.
+- `src/replay.js`, `src/main.jsx`, `src/style.css`: validated final scores, both lineages, pinned behavior, completion wording, recorded-only loading.
+- `tests/test_credentials.py`, `tests/test_export_replay.py`, `tests/replay.test.js`: canaries, attempt/evidence guards, final metadata, baseline identity regression.
+- `scripts/browser_check.mjs`: recorded artifact, source labels, seven scores, lineage, pinned behavior, responsive and failure-state checks.
+- `public/replay.json`: actual reader export and frozen final scores.
+- `package.json`, `package-lock.json`, `vite.config.js`: remove the live path and database dependency; `server.js` deleted.
+- `README.md`, `HANDOFF.md`: run instructions, deployment boundary, verification and handoff.
 
-- Generated the fixture using `uv run --frozen python web/scripts/export_replay.py --fixture`. It contains 3 versions, 42 run summaries, and exactly 1,392 hourly records for the two focused streams. Controls are explicitly hand-authored.
-- `uv run --frozen python -m unittest discover -s web/tests -p 'test_*.py'` passed 15 tests. Missing, truncated, duplicate, or mismatched jobs and missing totals/diagnosis cannot replace an existing replay.
-- `uv run --frozen python web/scripts/check_fixture.py` verified the exported hourly physics and all validation verdicts.
-- Ran `npm ci && npm run build` under Node 22.23.3. The build succeeded and `dist/index.html` exists. `npm test` passed 13 tests, including the public asset credential boundary. npm reported no dependency vulnerabilities.
-- The production browser check passed. It verified initial repair/scenario focus, acceptance labeling, charts, source labels, keyboard controls, mobile layout, rejected proposals, absent data, long text, positive cost changes, empty/loading/error states, and disabled production live mode. Normal interaction produced no console warnings or errors.
-- The real Atlas reader connection succeeded. At the check, `flex.harness_versions` was empty and there were zero `val-26-high` runs. The real exporter exited with a sanitized error and preserved the fixture byte-for-byte. No recorded-success claim is made.
-- An independent review found the missing-job export guard, which was fixed before commit. A fresh review passed the guard and all 15 Python tests with no further findings.
+## Verification
 
-Python checks used `PYTHONDONTWRITEBYTECODE=1`, `UV_PROJECT_ENVIRONMENT=web/.venv`, and `UV_CACHE_DIR=web/.cache/uv` from the repository root. Browser verification used `PLAYWRIGHT_PACKAGE=/opt/homebrew/lib/node_modules/@playwright/mcp/package.json FLEX_URL=http://127.0.0.1:4173 node scripts/browser_check.mjs` from `web/`.
+- Reproduced the old export vulnerability: `Before fix: all 14 credential canaries failed — ValueError not raised.`
+- Repeated the original export-level canary after the fix: `Fixed: Credential pattern at $["versions"][0]["rationale"]; existing artifact unchanged.`
+- Python unittest discovery: 18 tests passed. The credential canaries cover seven pattern variants in nested values and keys.
+- Fixture physics check: 42 runs and 1,392 hours passed. It leaves the recorded artifact untouched.
+- `uv run python web/scripts/export_replay.py` succeeded against Atlas with the reader client. The exported seven final rows exactly match `results/final.json`, including totals and costs.
+- Node 22.23.3: clean `npm ci && npm run build` passed. `npm test` passed 16 tests. The clean install reported zero dependency vulnerabilities.
+- Independent review caught the missing baseline identity assumption; it was fixed and regression-tested. Review of the actual recorded artifact then passed with seven rows, two evolution groups, and 696 paired hours.
+- Production Chrome checks passed: recorded labels, seven exact scores, both reference labels, complete two-run lineage, verbatim featured reasons, pinned behavior, end-of-hour completion, keyboard slider, 390px layout, no normal console errors/warnings, and empty/loading/error/malformed/missing-evidence states.
+- `python3 verify_workspace.py`: passed eight hackathon folders, 32 core documents, sources, deadlines, and local links.
 
-Local evidence is excluded from Git. `web/evidence/fixture-projector.png` is the first screen. `fixture-desktop.png` shows the complete page. `fixture-mobile.png`, `fixture-rejected.png`, and `fixture-error.png` cover other states. `browser-check.json` and `atlas-export-check.json` record results.
+Python commands run from the repository root with `PYTHONDONTWRITEBYTECODE=1 UV_PROJECT_ENVIRONMENT=web/.venv UV_CACHE_DIR=web/.cache/uv`. Browser checks use the installed Chrome and pinned Playwright MCP package.
 
-## Run and next step
+Screenshots and reports are ignored local evidence under `web/evidence/`: `recorded-projector.png`, `recorded-desktop.png`, `recorded-mobile.png`, `recorded-scoreboard.png`, `recorded-lineage.png`, `recorded-error.png`, and `browser-check.json`.
 
-From `web/`, run `npm ci && npm run dev`. For the static artifact, use `npm run build && npm run preview -- --port 4173 --strictPort`.
+## Deployment handoff
 
-The local Modelence static build check is complete. Docker’s daemon was stopped, so the Linux `node-22-slim` image itself was not run. This lane stops here. No deployment, push, or database write was performed.
+`modelence.config.json` uses `node-22-slim`, resource root `web`, `npm ci` then `npm run build`, and static `/` from `dist`. Deployment staging contains only this root config and an allowlisted nested frontend directory. Its only public data file is the credential-scanned replay. Environment files, Python code, tests, evidence, caches, and database clients are excluded.
 
-Ricardo will confirm when the final replay has been exported. Do not deploy before that confirmation. After it, follow `https://modelence.com/skill.md` and let Ricardo confirm the deployment in the browser. The current public artifact is still labeled fixture.
+Ricardo authorized the Modelence deploy and will complete account selection/confirmation in the browser. Deployment outcome and live URL will be appended after the CLI reports success. No push is authorized or performed.
