@@ -29,7 +29,7 @@ Goal: the harness adapts itself through a model-generated policy change that the
    - Never load final scenarios.
 3. `flex/telemetry.py` is optional Raindrop instrumentation (`raindrop-ai`, key `RAINDROP_WRITE_KEY`) with one interaction per proposal and its verdict. It's a no-op without the key. Don't claim it makes the entry prize-eligible.
 4. `flex/final.py` runs once after the coordinator declares the freeze.
-   1. Write `results/final_manifest.json` before any run. It holds the `EvalIdentity` of the incumbent, champion, restart_aware reference, and control, plus `manifest_sha256()`.
+   1. Write `results/final_manifest.json` before any run. It holds `identity(policy, final())` for the incumbent, champion, restart_aware reference, and control.
    2. Run each one on `flex.scenarios.final()`.
    3. Write `results/final.json` and print the table.
    - The result must never feed another repair. Label any later rerun `exploratory` in its filename.

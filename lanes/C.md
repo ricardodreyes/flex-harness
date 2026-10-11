@@ -29,7 +29,7 @@ Paste this into Claude Code opened in `app-c`. Run `git merge main` first, then 
    - Recursive Harnessing.
    - Built Oct 11, 2026.
    - CAISO NP15 day-ahead prices are real, while jobs, inference load, events, and the restart cost are simulated assumptions.
-   - The split table from `lanes/README.md`, including that final prices are reserved by procedure, not access control.
+   - The split table from `lanes/README.md`, including that final prices live outside the repo and are held out by procedure and file location, not secrecy. A dethroned champion's status is "retired".
    - Texas SB 6 is motivation only, citing https://capitol.texas.gov/tlodocs/89R/billtext/html/SB00006F.htm. §39.170(a) covers a curtailment protocol during firm load shed. §39.170(b) is a separate ≥75 MW reliability service that excludes loads curtailing on wholesale prices, which this price-responsive scheduler is. The replay is California prices and doesn't show Texas compliance.
    - Results come only from `results/final.json`. Leave placeholders until then.
 

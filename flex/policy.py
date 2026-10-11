@@ -26,7 +26,8 @@ class PolicyError(Exception):
 
 
 def _number(v, bound: float = MAX_ABS) -> bool:
-    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) and abs(v) <= bound
+    # magnitude first: math.isfinite raises OverflowError on ints past the float range
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and -bound <= v <= bound and math.isfinite(v)
 
 
 def _power(v, where: str, out: list[str]):
@@ -42,6 +43,9 @@ def _condition(c, where: str, fields: list[str], out: list[str]):
     if unknown:
         out.append(f"{where}: unknown condition keys {sorted(unknown)}")
     field, op, value = c.get("field"), c.get("op"), c.get("value")
+    if not isinstance(field, str) or not isinstance(op, str):
+        out.append(f"{where}: field and op must be strings, got {field!r} and {op!r}")
+        return
     if field not in OBS_FIELDS:
         out.append(f"{where}: unknown field {field!r}")
     elif field not in fields:
@@ -57,7 +61,7 @@ def _condition(c, where: str, fields: list[str], out: list[str]):
         if set(value) != {"field", "times", "plus"}:
             out.append(f"{where}: field reference needs exactly field, times, plus")
         ref = value.get("field")
-        if ref not in OBS_FIELDS:
+        if not isinstance(ref, str) or ref not in OBS_FIELDS:
             out.append(f"{where}: reference to unknown field {ref!r}")
         elif ref not in fields:
             out.append(f"{where}: referenced field {ref!r} is not in context_fields")
