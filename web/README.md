@@ -6,6 +6,10 @@ The page follows a scheduler repair through its diagnosis, policy change, valida
 
 The lineage groups all proposals by evolution run while retaining their actual parent relationships. The featured repair is `g1-289b1a`; the featured rejection is `g4-4a14cc`. The behavior panel stays on `v0` versus `g1-289b1a` on `val-26-high`. A job's `done_h` is its last hour with work: completion occurs at the end of that hour.
 
+The opening summary reports the recorded 30× restart-energy change and 10/12 → 12/12 validation repair. Four native links jump to the repair, policy, rejected proposal, and results. The policy link selects `g1-289b1a`. The rejection link and a fresh `#rejection` URL select `g4-4a14cc`.
+
+The ablation beneath the seven-row scoreboard is labeled exploratory and after the freeze. `src/keepwarm-ablation.json` is an exact build-time copy of `results/exploratory-keepwarm-ablation.json`. The test checks byte equality and the displayed costs, completion counts, and reductions against the frozen baseline. Neither the frozen replay nor the final results are regenerated for this addition.
+
 ## Export
 
 From the application repository root:

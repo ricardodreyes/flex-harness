@@ -22,6 +22,14 @@ h1 span { color: var(--blue); }
 .intro { max-width: 680px; color: #586274; font-size: 20px; line-height: 1.65; }
 .hero-note { font-size: 13px; color: #586274; margin: 24px 0; max-width: 730px; }
 .story-link { display: inline-flex; gap: 25px; align-items: center; color: var(--blue); font-size: 14px; font-weight: 600; text-underline-offset: 5px; }
+.story-links { display: flex; flex-wrap: wrap; gap: 14px 28px; margin-top: 28px; }
+.hero-summary { display: grid; grid-template-columns: .8fr 1.25fr 1.1fr; gap: 22px; margin: 32px 0; }
+.hero-summary .metric strong { font-size: clamp(24px, 2.7vw, 36px); }
+.hero-summary .metric:last-child strong { font-size: 24px; line-height: 1.25; }
+.ablation { border-top: 2px solid var(--blue); margin-top: 36px; padding-top: 24px; }
+.ablation h3 { font-size: 23px; margin: 12px 0; }
+.ablation > p { margin-top: 12px; }
+.ablation code { overflow-wrap: anywhere; }
 .panel { padding: 48px 0 55px; border-top: 1px solid var(--line); }
 h2 { font-size: clamp(29px, 3vw, 40px); letter-spacing: -.04em; line-height: 1.16; font-weight: 600; margin: 21px 0 18px; max-width: 880px; }
 .section-intro { font-size: 16px; line-height: 1.65; color: #586274; max-width: 830px; }
@@ -106,6 +114,10 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
   h1 { margin-top: 28px; font-size: 43px; }
   .intro { font-size: 17px; }
   .metrics { gap: 16px; }
+  .hero-summary { grid-template-columns: 1fr; gap: 24px; }
+  .hero-summary .metric strong { font-size: 29px; }
+  .hero-summary .metric span { font-size: 15px; }
+  .hero-summary .metric small { font-size: 12px; }
   .metric { padding-left: 12px; }
   .metric strong { font-size: 29px; }
   .metric span { font-size: 12px; }

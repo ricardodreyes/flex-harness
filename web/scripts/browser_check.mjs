@@ -64,6 +64,34 @@ try {
   assert.deepEqual(await page.locator('#problem .diagnosis > p').allTextContents(), problemRun.diagnosis);
   results.push('The served replay matches the export; all six panels and nested views carry the recorded evaluation replay label.');
 
+  assert.deepEqual(await page.locator('.hero-summary .metric strong').allTextContents(), ['30×', '10 / 12 → 12 / 12', 'Cheaper proposal rejected']);
+  assert.match(await page.locator('.hero-summary').innerText(), /−?\-2\.57% training electricity vs\. parent/);
+  assert.ok((await page.locator('.hero-summary').innerText()).includes('regression on val-26-high: late_job_hours 0 -> 1'));
+  assert.deepEqual(await page.locator('.story-links a').evaluateAll(links => links.map(link => link.getAttribute('href'))), ['#repair', '#policy', '#rejection', '#results']);
+  await page.getByRole('link', { name: 'Validation repair', exact: true }).click();
+  assert.equal(new URL(page.url()).hash, '#repair');
+  await page.getByRole('link', { name: 'Rejected proposal', exact: true }).click();
+  assert.equal(new URL(page.url()).hash, '#rejection');
+  assert.equal(await page.locator('#proposal').inputValue(), rejected._id);
+  await assertReasons(page.locator('.verdict-reasons'), rejected);
+  const policyLink = page.getByRole('link', { name: 'Policy change', exact: true });
+  await page.keyboard.press('Tab');
+  await policyLink.focus();
+  assert.notEqual(await policyLink.evaluate(element => getComputedStyle(element).outlineStyle), 'none');
+  await page.keyboard.press('Enter');
+  assert.equal(new URL(page.url()).hash, '#policy');
+  assert.equal(await page.locator('#proposal').inputValue(), repair._id);
+  await page.getByRole('link', { name: 'Results', exact: true }).click();
+  assert.equal(new URL(page.url()).hash, '#results');
+  await page.goto('about:blank');
+  await load(new URL('#rejection', url).href);
+  await page.waitForFunction(() => Math.abs(document.getElementById('rejection').getBoundingClientRect().top - 30) < 2);
+  assert.equal(await page.locator('#proposal').inputValue(), rejected._id);
+  await assertReasons(page.locator('.verdict-reasons'), rejected);
+  await page.getByRole('link', { name: 'Policy change', exact: true }).click();
+  results.push('All four native section links work; policy and rejection links select their featured version, including keyboard use and a direct rejection URL.');
+  await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
+
   const scoreboard = page.locator('.scoreboard');
   const scoreRows = scoreboard.locator('tbody tr');
   assert.equal(await scoreRows.count(), replay.final_results.length);
@@ -81,6 +109,19 @@ try {
   assert.equal(await scoreboard.getByText(/^Reference · /).count(), 2);
   await panel('All seven pinned versions, on the final scenarios.').getByText('Every version met every final deadline. The repair evidence is the validation verdict.', { exact: true }).waitFor();
   results.push('All seven pinned versions render in source order with exact final totals and costs; both references and the validation-versus-final distinction are labeled.');
+
+  const ablation = page.locator('.ablation');
+  assert.match(await ablation.innerText(), /Exploratory, after the freeze; not part of the frozen final/i);
+  assert.deepEqual(await ablation.locator('tbody tr').evaluateAll(rows => rows.map(row => [...row.cells].map(cell => cell.textContent))), [
+    ['g5-e942f4', '38 jobs · 0 late job-hours', '$15,741.65', '12.18%'],
+    ['g5-e942f4 without 1% keep-warm rule', '38 jobs · 0 late job-hours', '$17,157.39', '4.28%'],
+  ]);
+  assert.match(await ablation.innerText(), /unvalidated on hardware/);
+  assert.match(await ablation.innerText(), /costs more than both hand-authored references/);
+  assert.equal(await page.locator('.scoreboard tbody tr').count(), 7);
+  await ablation.screenshot({ path: fileURLToPath(new URL('recorded-ablation.png', evidence)) });
+  await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
+  results.push('The separate after-freeze ablation shows 38 completed jobs, zero late job-hours, exact costs and savings; the frozen scoreboard remains seven rows.');
 
   const groups = page.locator('.evolve-run');
   assert.equal(await groups.count(), replay.evolve_runs.length);
@@ -118,6 +159,7 @@ try {
     assert.deepEqual(await row.locator('td').allTextContents(), [`h ${before.arrive_h}`, `h ${before.deadline_h}`, completed(before), completed(after), `${before.late_h} → ${after.late_h}`]);
   }
   await noOverflow();
+  await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
   await screenshot('recorded-desktop.png');
   await screenshot('recorded-projector.png', false);
   await page.locator('section.panel').filter({ has: scoreboard }).screenshot({ path: fileURLToPath(new URL('recorded-scoreboard.png', evidence)) });
@@ -125,6 +167,7 @@ try {
   results.push('The behavior panel pairs v0 and g1-289b1a on val-26-high; every job shows completion at the end of its final work hour.');
 
   const slider = page.locator('#hour-window');
+  await page.keyboard.press('Tab');
   await slider.focus();
   assert.notEqual(await slider.evaluate(element => getComputedStyle(element).outlineStyle), 'none');
   const window = await slider.evaluate(input => ({ value: Number(input.value), max: Number(input.max), step: Number(input.step) }));
@@ -140,9 +183,13 @@ try {
 
   await page.setViewportSize({ width: 390, height: 844 });
   await noOverflow();
-  await page.locator('#proposal').selectOption(repair._id);
+  await page.getByRole('link', { name: 'Rejected proposal', exact: true }).click();
+  assert.equal(await page.locator('#proposal').inputValue(), rejected._id);
+  await page.getByRole('link', { name: 'Policy change', exact: true }).click();
+  assert.equal(await page.locator('#proposal').inputValue(), repair._id);
   await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
   await screenshot('recorded-mobile.png');
+  await screenshot('recorded-mobile-viewport.png', false);
   await load(new URL('?mode=live', url).href);
   assert.equal(await page.locator('#proposal').inputValue(), repair._id);
   assert.equal(await page.locator('.scoreboard tbody tr').count(), 7);
@@ -150,6 +197,12 @@ try {
   assert.deepEqual(errors, []);
   assert.deepEqual(consoleMessages, []);
   results.push('The 390px page has no horizontal body overflow; ?mode=live still renders recorded data with no API requests or browser warnings/errors.');
+
+  await replace({ ...replay, source: 'fixture', final_results: [], evolve_runs: [], featured_rejection: null });
+  assert.equal(await page.locator('.hero-summary').count(), 0);
+  assert.equal(await page.locator('.ablation').count(), 0);
+  assert.match(await page.locator('.hero-note').innerText(), /Simulator fixture/);
+  results.push('Fixture data never displays the recorded validation summary or the after-freeze ablation.');
 
   const missing = structuredClone(replay);
   for (const run of missing.runs) { delete run.jobs; delete run.diagnosis; }

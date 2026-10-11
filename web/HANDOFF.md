@@ -1,5 +1,31 @@
 # Lane D final replay handoff
 
+## Demo polish, October 11
+
+The hero now shows the measured restart change and validation repair. Native links open the repair, select the first repair's policy, select the featured rejection, or open the results. A fresh `#rejection` URL selects `g4-4a14cc` and scrolls after the replay loads.
+
+The final panel retains all seven frozen rows. A separate two-row ablation follows them, labeled exploratory and after the freeze. It shows the original champion at $15,741.65 and the policy without its keep-warm rule at $17,157.39. Both complete 38 jobs with no late job-hours. The page discloses the simulator assumption and the ablated policy's higher cost than both references.
+
+Changed files are `src/main.jsx`, `src/style.css`, `src/keepwarm-ablation.json`, `tests/replay.test.js`, `scripts/browser_check.mjs`, `README.md`, and this handoff. The ablation copy stays inside the frontend deployment directory. The test compares it byte for byte with the authoritative results file.
+
+Verified from the isolated `app-polish` worktree with the existing installed toolchain:
+
+```sh
+npm --prefix web run build
+npm --prefix web test
+PYTHONDONTWRITEBYTECODE=1 web/.venv/bin/python -m unittest discover -s web/tests -p 'test_*.py'
+cd web
+npm run preview -- --port 4174 --strictPort
+FLEX_URL=http://127.0.0.1:4174 node scripts/browser_check.mjs
+```
+
+The production build passed. All 17 JavaScript tests and 18 Python tests passed. The browser check passed 16 cases, including native links, keyboard selection, cold-load rejection scrolling, exact ablation numbers, seven frozen rows, the slider, 390px layout, fixture labels, and empty/loading/error states. Normal operation produced no warnings, errors, or live API calls. The injected HTTP 503 was the only expected console error.
+
+The credential scan passed for the replay and the bundled ablation. The replay, final results, final manifest, and authoritative ablation are byte-identical to the starting commit. `evidence/recorded-projector.png`, `evidence/recorded-ablation.png`, and `evidence/recorded-mobile-viewport.png` capture the reviewed layouts.
+
+Next task is to review and deploy this build through the existing Modelence flow after Ricardo's approval. No deployment, submission, database write, or fresh generation ran during this polish. Spoken timing and the venue projector remain rehearsal checks.
+
+
 ## Current behavior
 
 Merged `main` through `ada741e` into `lane-web`. All authored changes remain under `web/`.

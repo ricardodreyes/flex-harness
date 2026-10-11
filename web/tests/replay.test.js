@@ -36,6 +36,32 @@ function finalReplay() {
   return input;
 }
 
+test('demo summary and copied ablation agree with the committed evidence', () => {
+  const replay = JSON.parse(readFileSync(new URL('../public/replay.json', import.meta.url)));
+  assert.equal(replay.source, 'recorded evaluation replay');
+  for (const [version, passed] of [['v0', 10], ['g1-289b1a', 12]]) {
+    const runs = replay.runs.filter(run => run.version === version && run.split === 'validation');
+    assert.equal(runs.length, 12);
+    assert.ok(runs.every(run => run.totals.infeasible_hours === 0));
+    assert.equal(runs.filter(run => ['late_job_hours', 'unfinished_kwh', 'cap_interventions'].every(key => run.totals[key] === 0)).length, passed);
+  }
+  assert.equal(replay.scenarios.find(row => row.id === 'val-26-low').settings.restart_kwh, 35);
+  assert.equal(replay.scenarios.find(row => row.id === 'val-26-high').settings.restart_kwh, 1050);
+  const rejected = replay.versions.find(row => row._id === 'g4-4a14cc').verdict;
+  assert.equal(rejected.accepted, false);
+  assert.equal(rejected.cost_delta_pct.toFixed(2), '-2.57');
+  assert.deepEqual(rejected.reasons, ['regression on val-26-high: late_job_hours 0 -> 1']);
+  const source = readFileSync(new URL('../../results/exploratory-keepwarm-ablation.json', import.meta.url), 'utf8');
+  assert.equal(readFileSync(new URL('../src/keepwarm-ablation.json', import.meta.url), 'utf8'), source);
+  const ablation = JSON.parse(source);
+  assert.deepEqual(ablation.scenarios, ['final-31', 'final-32', 'final-33']);
+  assert.equal(Object.keys(finalSource).length, 7);
+  assert.deepEqual(Object.values(ablation.results).map(row => [row.jobs_completed, row.late_job_hours]), [[38, 0], [38, 0]]);
+  assert.deepEqual(Object.values(ablation.results).map(row => (100 * (1 - row.training_energy_cost / finalSource.v0.training_cost)).toFixed(2)), ['12.18', '4.28']);
+  assert.equal(ablation.results['g5-e942f4'].training_energy_cost, finalSource['g5-e942f4'].training_cost);
+  for (const reference of ['restart_aware', 'control']) assert.ok(ablation.results['g5-e942f4 without 1% keep-warm rule'].training_energy_cost > finalSource[reference].training_cost);
+});
+
 test('final scores retain all seven pins, references and separate final identities', () => {
   const data = organizeReplay(finalReplay());
   assert.deepEqual(data.final_results.map(row => row.version), Object.keys(finalSource));
