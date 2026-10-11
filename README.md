@@ -102,14 +102,23 @@ uv run python -m flex.final                   # once, after the freeze
 
 ## Results
 
-Results come only from `results/final.json`, written once by `flex.final`.
+`flex.final` ran once, at 14:43 PDT on Oct 11, on final-31, final-32, and final-33 (Sep 29 to Oct 10, 2026 prices). Every number here comes from `results/final_manifest.json`, `results/final.json`, `results/final.log`, and the version records in Atlas.
 
-| Policy | Final scenarios passed | Late job-hours | Unfinished kWh | Training energy cost |
-| --- | --- | --- | --- | --- |
-| incumbent | [RESULT] | [RESULT] | [RESULT] | [RESULT] |
-| supervisor champion | [RESULT] | [RESULT] | [RESULT] | [RESULT] |
-| restart-aware reference | [RESULT] | [RESULT] | [RESULT] | [RESULT] |
-| control repair | [RESULT] | [RESULT] | [RESULT] | [RESULT] |
+On the 3 final scenarios, every pinned version met every deadline, including the frozen incumbent `v0`. So the final set doesn't test the repair. The repair evidence is validation, where the evaluator accepted `g1-289b1a` with "repairs val-25-high, val-26-high; training energy -1.93%".
+
+| Version | What it is | Final scenarios passed | Late job-hours | Unfinished kWh | Summed training energy | vs v0 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `v0` | frozen incumbent | 3 of 3 | 0 | 0 | $17,924.46 | |
+| `g1-289b1a` | supervisor, the validation repair | 3 of 3 | 0 | 0 | $18,241.62 | +1.77% |
+| `g5-683c0e` | supervisor | 3 of 3 | 0 | 0 | $16,135.24 | -9.98% |
+| `g4-eac5bd` | supervisor | 3 of 3 | 0 | 0 | $16,061.45 | -10.39% |
+| `g5-e942f4` | supervisor, current champion | 3 of 3 | 0 | 0 | $15,741.65 | -12.18% |
+| `restart_aware` | hand-tuned reference | 3 of 3 | 0 | 0 | $16,695.84 | -6.85% |
+| `control` | hand-written control repair | 3 of 3 | 0 | 0 | $16,781.72 | -6.38% |
+
+The champion beat both hand-tuned references on training energy.
+
+Two evolve runs wrote 12 versions to Atlas, the seed `v0` and 11 supervisor proposals. The evaluator rejected 7 of them with reasons. One is `g4-4a14cc`, rejected with "regression on val-26-high: late_job_hours 0 -> 1". Four accepted versions were later retired, and `g5-e942f4` is the champion. Raindrop recorded 17 proposal events, read from its dashboard at 2:40 p.m.
 
 The control repair is hand-written. It proves the scenario can be repaired. The supervisor never sees it, and it isn't agent-generated.
 
